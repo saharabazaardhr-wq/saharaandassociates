@@ -119,6 +119,16 @@
     f.dueManual = !!old; f.interManual = old ? true : false;
     const parties = () => S.parties.filter((p) => p.type === (isSale ? 'Customer' : 'Supplier') || p.type === 'Both' || p.id === f.partyId).sort((a, b) => a.name.localeCompare(b.name));
     const stockMap = E.itemStock(S, old ? old.id : null);
+    const impCands = (() => {
+      if (!isSale) return [];
+      const list = []; S.vouchers.filter((v) => v.type === 'purchase').sort((a, b) => (a.date < b.date ? 1 : -1)).forEach((v) => {
+        const p = S.parties.find((x) => x.id === v.partyId), lbl = (p ? p.name : '—') + ' · ' + fdate(v.date) + ' · ₹ ' + fmt(v.total);
+        [v.refNo, v.no].filter((x, i, a) => x && a.indexOf(x) === i).forEach((no) => list.push({ no, v, label: lbl, sup: p ? p.name : '' }));
+      });
+      const cnt = {}; list.forEach((c) => { const k = c.no.toLowerCase(); cnt[k] = (cnt[k] || 0) + 1; });
+      list.forEach((c) => { c.value = cnt[c.no.toLowerCase()] > 1 ? c.no + ' · ' + c.sup : c.no; });
+      return list;
+    })();
     const itemRate = (it) => { const ex = num(isSale ? it.saleRate : it.purchaseRate); return f.taxMode === 'incl' ? r2(ex * (1 + num(it.gst) / 100)) : ex; };
     const lineRow = (l, i) => '<tr data-i="' + i + '"><td class="sn">' + (i + 1) + '</td><td><input class="ln-desc" list="descList" value="' + esc(l.desc) + '" placeholder="Item or service" aria-label="Description"><small class="stk"></small></td><td><input class="ln-hsn mono" value="' + esc(l.hsn) + '" maxlength="8" inputmode="numeric" aria-label="HSN"></td><td><input class="ln-qty n" type="number" step="any" min="0" value="' + esc(l.qty) + '" aria-label="Quantity"></td><td><select class="ln-unit" aria-label="Unit">' + opts(UNITS, l.unit || 'Nos') + '</select></td><td><input class="ln-rate n" type="number" step="any" min="0" value="' + esc(l.rate) + '" aria-label="Rate"></td><td><input class="ln-disc n" type="number" step="any" min="0" max="100" value="' + esc(l.disc) + '" aria-label="Discount percent"></td><td><select class="ln-gst" aria-label="GST rate">' + opts(GST_RATES.map((r) => [String(r), r + '%']), String(num(l.gst))) + '</select></td><td class="n"><input class="ln-amt n" type="number" step="any" min="0" aria-label="Line amount"></td><td><button type="button" class="x sm" data-act="lnDel" aria-label="Remove line">×</button></td></tr>';
     const body = '<form id="invForm" autocomplete="off">' + (SC ? A.scan.notice(SC, (SC.addedSupplier ? ' New supplier added: <b>' + esc(S.parties.find((p) => p.id === f.partyId).name) + '</b>.' : '') + (f.partyId ? '' : ' Supplier not found. Choose or add one.')) : '') + '<div class="err" id="ifErr" hidden></div>'
@@ -129,9 +139,10 @@
       + field(isSale ? 'Customer PO / reference' : 'Supplier’s invoice number', '<input name="refNo" value="' + esc(f.refNo || '') + '">')
       + field('Due date', '<input type="date" name="dueDate" value="' + (f.dueDate || '') + '">')
       + '</div><div class="pos" id="ifPos"></div>'
+      + (isSale ? '<div class="note imp" id="impBox" hidden><b>Import items from a purchase bill</b><div class="inl"><input id="impNo" list="impList" placeholder="Type or pick purchase bill number" autocomplete="off"><button type="button" class="btn pri sm" data-act="impGo">Import all items</button></div><small id="impMsg" class="muted"></small><datalist id="impList">' + impCands.map((c) => '<option value="' + esc(c.value) + '" label="' + esc(c.label) + '">').join('') + '</datalist></div>' : '')
       + '<div class="scroll"><table class="lines"><thead><tr><th>#</th><th>Description</th><th>HSN / SAC</th><th class="n">Qty</th><th>Unit</th><th class="n" id="thRate">Rate ₹</th><th class="n">Disc %</th><th>GST</th><th class="n" id="thAmt">Amount ₹</th><th></th></tr></thead><tbody id="lineBody">' + f.lines.map(lineRow).join('') + '</tbody></table></div>'
       + '<datalist id="descList">' + (S.items || []).slice().sort((a, b) => a.name.localeCompare(b.name)).map((it) => { const m = stockMap.get(E.itemKey(it.name)); return '<option value="' + esc(it.name) + '" label="' + esc([it.hsn && 'HSN ' + it.hsn, 'Stock ' + (m ? m.onHand : 0) + ' ' + (it.unit || '')].filter(Boolean).join(' · ')) + '">'; }).join('') + '</datalist>'
-      + '<div class="row between"><button type="button" class="btn sm" data-act="lnAdd">＋ Add item</button><div class="totbox" id="ifTot"></div></div>'
+      + '<div class="row between"><div class="row"><button type="button" class="btn sm" data-act="lnAdd">＋ Add item</button>' + (isSale ? '<button type="button" class="btn sm" data-act="impOpen">⇩ Import from purchase bill</button>' : '') + '</div><div class="totbox" id="ifTot"></div></div>'
       + '<div class="grid g3">' + field('Narration / notes', '<textarea name="narration" rows="2">' + esc(f.narration || '') + '</textarea>', 'w2') + (isSale ? '' : '<label class="chk"><input type="checkbox" name="itc"' + (f.itc !== false ? ' checked' : '') + '><span>Claim input tax credit on this bill<small>Untick if credit is blocked; GST then becomes part of the purchase cost.</small></span></label>') + '</div></form>';
     const ov = A.openModal({ title: (old ? 'Edit ' : 'New ') + (isSale ? 'sale invoice' : 'purchase bill'), size: 'xl', body, foot: '<button type="button" class="btn" data-act="mClose">Cancel</button><button type="button" class="btn pri" id="invSave">Save ' + (isSale ? 'invoice' : 'bill') + '</button>' });
     const form = ov.querySelector('#invForm'), tb = ov.querySelector('#lineBody');
@@ -188,6 +199,27 @@
     form.addEventListener('change', (e) => { if (e.target.classList.contains('ln-gst') || e.target.classList.contains('ln-unit')) recalc(); });
     ov.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]'); if (!b) return;
+      if (b.dataset.act === 'impOpen') { const bx = ov.querySelector('#impBox'); bx.hidden = !bx.hidden; if (!bx.hidden) ov.querySelector('#impNo').focus(); e.stopPropagation(); return; }
+      if (b.dataset.act === 'impGo') {
+        e.stopPropagation(); const inp = ov.querySelector('#impNo'), msg = ov.querySelector('#impMsg'), q = inp.value.trim().toLowerCase();
+        if (!q) { msg.textContent = 'Enter a purchase bill number.'; return; }
+        let hit = impCands.filter((c) => c.value.toLowerCase() === q);
+        if (!hit.length) hit = impCands.filter((c) => c.no.toLowerCase() === q);
+        const vs = [...new Set(hit.map((c) => c.v))];
+        if (!vs.length) { msg.textContent = 'No purchase bill found with this number.'; return; }
+        if (vs.length > 1) { msg.textContent = 'More than one supplier has this bill number. Pick one from the list.'; return; }
+        const pv = vs[0], taken = readLines().filter((l) => l.desc || num(l.qty) || num(l.rate)); let noRate = 0;
+        const add = (pv.lines || []).filter((l) => l.desc).map((l) => {
+          const it = E.findItem(S, l.desc), q0 = num(l.qty), d0 = num(l.disc), g0 = num(l.gst);
+          const exBuy = q0 && l.amount != null ? r2(num(l.amount) / (q0 * (1 - d0 / 100))) : (pv.taxMode === 'incl' ? r2(num(l.rate) / (1 + g0 / 100)) : num(l.rate));
+          let ex = it && num(it.saleRate) ? num(it.saleRate) : (noRate++, exBuy);
+          return { desc: it ? it.name : l.desc, hsn: l.hsn || (it && it.hsn) || '', qty: l.qty, unit: l.unit || 'Nos', rate: f.taxMode === 'incl' ? r2(ex * (1 + g0 / 100)) : ex, disc: 0, gst: g0 };
+        });
+        if (!add.length) { msg.textContent = 'This bill has no items.'; return; }
+        tb.innerHTML = taken.concat(add).map(lineRow).join(''); recalc();
+        msg.textContent = add.length + ' item(s) imported from ' + (pv.refNo || pv.no) + '.' + (noRate ? ' ' + noRate + ' line(s) show the purchase rate. Change them to your selling rate.' : ''); inp.value = '';
+        return;
+      }
       if (b.dataset.act === 'lnAdd') { const ls = readLines(); ls.push({ desc: '', hsn: '', qty: '', unit: 'Nos', rate: '', disc: 0, gst: S.tax.defaultGst }); tb.innerHTML = ls.map(lineRow).join(''); recalc(); tb.querySelector('tr:last-child .ln-desc').focus(); e.stopPropagation(); }
       else if (b.dataset.act === 'lnDel') { const ls = readLines(); const i = [...tb.children].indexOf(b.closest('tr')); if (ls.length > 1) ls.splice(i, 1); else ls[0] = { desc: '', hsn: '', qty: '', unit: 'Nos', rate: '', disc: 0, gst: S.tax.defaultGst }; tb.innerHTML = ls.map(lineRow).join(''); recalc(); e.stopPropagation(); }
       else if (b.dataset.act === 'ifNewParty') { A.forms.party(null, { type: isSale ? 'Customer' : 'Supplier', onSaved: (p) => { const sel = g('partyId'); sel.innerHTML = '<option value="">Select…</option>' + opts(parties().map((x) => [x.id, x.name]), p.id); sel.value = p.id; f.interManual = false; autoDue(); recalc(); } }); e.stopPropagation(); }
@@ -243,6 +275,13 @@
     form.addEventListener('submit', (e) => { e.preventDefault(); submit(); });
   };
 
+
+  A.forms.itemLedger = function (id) {
+    const S = A.S, it = S.items.find((x) => x.id === id); if (!it) return;
+    const mv = E.itemMoves(S, it.name), unit = esc(it.unit || '');
+    const rows = mv.rows.map((r) => { const p = S.parties.find((x) => x.id === r.partyId); return '<tr><td>' + fdate(r.date) + '</td><td><button type="button" class="lnk" data-act="vView" data-id="' + r.vid + '">' + esc(r.no) + '</button></td><td>' + (r.type === 'purchase' ? 'Purchase' : 'Sale') + '</td><td>' + esc(p ? p.name : '—') + '</td><td class="n">' + (r.inQty || '') + '</td><td class="n">' + (r.outQty || '') + '</td><td class="n ' + (r.bal < 0 ? 'red' : '') + '"><b>' + r.bal + '</b></td></tr>'; }).join('');
+    A.openModal({ title: 'Stock ledger · ' + it.name, size: 'lg', body: '<div class="note">Purchases add to stock and sales reduce it. Unit: <b>' + unit + '</b>. Stock in hand now: <b>' + mv.onHand + '</b></div><div class="scroll"><table class="tbl"><thead><tr><th>Date</th><th>Bill no</th><th>Type</th><th>Party</th><th class="n">In</th><th class="n">Out</th><th class="n">Balance</th></tr></thead><tbody><tr><td colspan="6">Opening stock</td><td class="n"><b>' + mv.open + '</b></td></tr>' + rows + '</tbody></table></div>', foot: '<button type="button" class="btn" data-act="mClose">Close</button>' });
+  };
   // ---------- receipt / payment form ----------
   A.forms.settle = function (type, id, preset) {
     const S = A.S, isR = type === 'receipt', old = id ? S.vouchers.find((x) => x.id === id) : null;
@@ -487,6 +526,7 @@
     if (!(await A.confirm('Delete party <b>' + esc(p.name) + '</b>?', 'Delete', true))) return;
     A.S.parties = A.S.parties.filter((x) => x.id !== p.id); A.store.enqueue({ kind: 'party', id: p.id }); A.closeModal(); location.hash = 'parties'; A.refresh(); A.toast('Party deleted');
   };
+  A.H.itemLedger = (el) => A.forms.itemLedger(el.dataset.id);
   A.H.newItem = () => A.forms.item(null);
   A.H.editItem = (el) => A.forms.item(el.dataset.id);
   A.H.delItem = async (el) => {

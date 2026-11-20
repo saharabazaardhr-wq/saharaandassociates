@@ -446,14 +446,14 @@
     let val = 0;
     const rows = list.map((i) => {
       const m = mv.get(E.itemKey(i.name)) || { open: 0, inQty: 0, outQty: 0, onHand: 0 }, v = r2(Math.max(0, m.onHand) * num(i.purchaseRate)); val += v;
-      return '<tr><td class="b">' + esc(i.name) + '</td><td class="mono">' + esc(i.hsn || '—') + '</td><td>' + esc(i.unit || '') + '</td><td class="n">' + num(i.gst) + '%</td><td class="n">' + (num(i.saleRate) ? fmt(i.saleRate) : '—') + '</td><td class="n">' + (num(i.purchaseRate) ? fmt(i.purchaseRate) : '—') + '</td><td class="n">' + m.open + '</td><td class="n">' + m.inQty + '</td><td class="n">' + m.outQty + '</td><td class="n ' + (m.onHand < 0 ? 'red' : '') + '"><b>' + m.onHand + '</b></td><td class="n">' + fmt(v) + '</td><td><div class="ra"><button type="button" class="lnk" data-act="editItem" data-id="' + i.id + '">Edit</button></div></td></tr>';
+      return '<tr><td class="b"><button type="button" class="lnk" data-act="itemLedger" data-id="' + i.id + '">' + esc(i.name) + '</button></td><td class="mono">' + esc(i.hsn || '—') + '</td><td>' + esc(i.unit || '') + '</td><td class="n">' + num(i.gst) + '%</td><td class="n">' + (num(i.saleRate) ? fmt(i.saleRate) : '—') + '</td><td class="n">' + (num(i.purchaseRate) ? fmt(i.purchaseRate) : '—') + '</td><td class="n">' + m.open + '</td><td class="n">' + m.inQty + '</td><td class="n">' + m.outQty + '</td><td class="n ' + (m.onHand < 0 ? 'red' : '') + '"><b>' + m.onHand + '</b></td><td class="n">' + fmt(v) + '</td><td><div class="ra"><button type="button" class="lnk" data-act="editItem" data-id="' + i.id + '">Edit</button></div></td></tr>';
     }).join('');
     const table = list.length ? '<div class="scroll"><table class="tbl"><thead><tr><th>Item</th><th>HSN</th><th>Unit</th><th class="n">GST</th><th class="n">Sale rate</th><th class="n">Buy rate</th><th class="n">Opening</th><th class="n">In</th><th class="n">Out</th><th class="n">Stock</th><th class="n">Value ₹</th><th></th></tr></thead><tbody>' + rows + '</tbody><tfoot><tr><td colspan="10">Stock value at purchase rate</td><td class="n">' + fmt(val) + '</td><td></td></tr></tfoot></table></div>' : '<div class="empty">' + ((S.items || []).length ? 'No item matches your search.' : 'No stock items yet. Items are added automatically when you save a purchase bill or sale invoice, or add one here.') + '</div>';
     return table + '<div class="note">Stock = opening + purchased − sold, counted across all years. It does not change the closing stock value used in Profit &amp; Loss. Enter that on the Profit &amp; Loss page.</div>';
   };
   A.pages.items = function () {
     const filt = '<div class="filters"><input type="search" data-f="itemQ" placeholder="Search item or HSN" value="' + esc(A.ui.itemQ || '') + '" aria-label="Search items"></div>';
-    return pageHead('Stock Items', 'Items appear here automatically from your bills and invoices. Pick them in a sale invoice to fill HSN, GST, rate and see stock.', '<button type="button" class="btn pri" data-act="newItem">＋ New item</button>') + panel('', filt + '<div id="itemArea">' + A.itemArea() + '</div>');
+    return pageHead('Inventory', 'Stock goes up with every purchase bill and down with every sale invoice. Click an item to see its stock ledger.', '<button type="button" class="btn pri" data-act="newItem">＋ New item</button>') + panel('', filt + '<div id="itemArea">' + A.itemArea() + '</div>');
   };
 
   A.pages.accounts = function () {
@@ -522,7 +522,7 @@
   const NAV = [
     ['Overview', [['dashboard', 'Dashboard']]],
     ['Transactions', [['sales', 'Sales'], ['purchases', 'Purchases'], ['receipts', 'Receipts'], ['payments', 'Payments'], ['expenses', 'Expenses'], ['contra', 'Contra'], ['daybook', 'Day Book']]],
-    ['Inventory', [['items', 'Stock Items']]],
+    ['Stock', [['items', 'Inventory']]],
     ['Parties', [['parties', 'Party Profiles'], ['ledger', 'Party Ledger'], ['debtors', 'Sundry Debtors'], ['creditors', 'Sundry Creditors']]],
     ['Statements', [['pnl', 'Profit & Loss'], ['balance-sheet', 'Balance Sheet'], ['trial-balance', 'Trial Balance']]],
     ['Compliance', [['taxation', 'Taxation (GST, TDS)']]],

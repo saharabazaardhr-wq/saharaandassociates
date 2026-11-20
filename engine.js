@@ -585,6 +585,18 @@
     m.forEach((e) => { e.inQty = r2(e.inQty); e.outQty = r2(e.outQty); e.onHand = r2(e.open + e.inQty - e.outQty); });
     return m;
   }
+  /** Item-wise stock movements: opening, then every purchase (in) and sale (out) in date order with a running balance. */
+  function itemMoves(state, name) {
+    const key = itemKey(name), it = findItem(state, name); let bal = it ? num(it.openQty) : 0; const open = bal, rows = [];
+    (state.vouchers || []).filter((v) => v.type === 'sale' || v.type === 'purchase').slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.ts || 0) - (b.ts || 0))).forEach((v) => {
+      (v.lines || []).forEach((l) => {
+        if (itemKey(l.desc) !== key) return;
+        const q = num(l.qty), isIn = v.type === 'purchase'; bal = r2(bal + (isIn ? q : -q));
+        rows.push({ date: v.date, vid: v.id, type: v.type, no: isIn ? (v.refNo || v.no) : v.no, partyId: v.partyId, inQty: isIn ? q : 0, outQty: isIn ? 0 : q, bal });
+      });
+    });
+    return { open, rows, onHand: bal };
+  }
   /** Add / refresh stock items from the lines of a sale or purchase. Returns true when the item list changed. */
   function syncItems(state, v) {
     if (!v || (v.type !== 'sale' && v.type !== 'purchase')) return false;
@@ -689,7 +701,7 @@
   return {
     r2, num, uid, pad, STATES, stateName, GSTIN_RE, PAN_RE, GROUPS, GROUP_ORDER, isNominal, TYPE_LABEL, PREFIX,
     fyStartYear, fyRange, fyLabel, addDays, daysBetween, fyMonths, MONTHS,
-    itemKey, findItem, itemStock, syncItems, syncAll, defaultAccounts, defaultState, calcLines, calcExpense, isInterstate, buildInvoice, buildExpense,
+    itemKey, findItem, itemStock, itemMoves, syncItems, syncAll, defaultAccounts, defaultState, calcLines, calcExpense, isInterstate, buildInvoice, buildExpense,
     postingsOf, buildIndex, nameOf, openingOf, sumRange, balanceAt, ledger,
     allocMap, partyBills, ageing, autoAllocate, partyKind,
     stockOpening, stockClosing, pnl, priorProfit, openingDifference, balanceSheet, trialBalance,
