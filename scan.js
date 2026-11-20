@@ -96,29 +96,32 @@
   const toB64 = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = () => rej(new Error('Could not read the photo.')); r.readAsDataURL(blob); });
   async function viaServer(blob, pass) {
     if (!/^https?:$/.test(location.protocol)) { const e = new Error('Bill scanning works on the live website.'); throw e; }
-    const image = await toB64(blob);
-    let r; try { r = await fetch('/api/scan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image, heads: headNames(), passcode: pass || '' }) }); } catch (e) { throw new Error('No internet connection.'); }
+    const image = await toB64(blob), mime = blob.type === 'application/pdf' ? 'application/pdf' : 'image/jpeg';
+    let r; try { r = await fetch('/api/scan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image, mime, heads: headNames(), passcode: pass || '' }) }); } catch (e) { throw new Error('No internet connection.'); }
     const j = await r.json().catch(() => ({}));
     if (r.ok) return j.data;
     const err = new Error(j.error || 'Could not read this bill.'); err.code = r.status === 401 ? 'passcode' : r.status === 429 ? 'rate_limited' : ''; throw err;
   }
   async function readBill(blob, pass) {
-    const s = await scan.available();
+    const isPdf = blob.type === 'application/pdf', s = await scan.available();
+    if (s && isPdf) throw new Error('PDF bills can be scanned on the live website (saharaandassociates.vercel.app). Here, please use a photo.');
     if (s) return s.json(prompt(), { images: [blob], modelTier: 'default', cache: false });
     return viaServer(blob, pass);
   }
 
   scan.start = async function () {
     if (A.S.demo) { A.toast('Start your own books first. Scanned bills are not saved in sample mode.'); return; }
-    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.style.display = 'none';
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,application/pdf,.pdf'; inp.style.display = 'none';
     document.body.appendChild(inp);
     inp.addEventListener('change', async () => {
       const file = inp.files && inp.files[0]; inp.remove(); if (!file) return;
-      if (!/^image\//.test(file.type)) { A.toast('Please choose a photo (JPG or PNG). PDFs are not supported yet.'); return; }
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+      if (!isPdf && !/^image\//.test(file.type)) { A.toast('Please choose a photo (JPG, PNG) or a PDF.'); return; }
+      if (isPdf && file.size > 3 * 1024 * 1024) { A.toast('This PDF is larger than 3 MB. Send a smaller PDF or a photo of the bill.', 'bad'); return; }
       const ov = A.openModal({ title: 'Reading your bill…', size: 'md', body: '<p class="muted" id="scanMsg">Claude is reading the bill. This takes a few seconds.</p><div id="scanPass"></div>', foot: '<button type="button" class="btn" data-act="mClose">Cancel</button>' });
       let cancelled = false; new MutationObserver((_, o) => { if (!document.body.contains(ov)) { cancelled = true; o.disconnect(); } }).observe(document.body, { childList: true, subtree: true });
       let blob;
-      try { blob = await shrink(file); } catch (e) { const m = document.getElementById('scanMsg'); if (m) { m.className = 'err'; m.textContent = e.message; } return; }
+      try { blob = isPdf ? new Blob([file], { type: 'application/pdf' }) : await shrink(file); } catch (e) { const m = document.getElementById('scanMsg'); if (m) { m.className = 'err'; m.textContent = e.message; } return; }
       const attempt = async (pass) => {
         const msg = document.getElementById('scanMsg'), box = document.getElementById('scanPass');
         if (box) box.innerHTML = '';

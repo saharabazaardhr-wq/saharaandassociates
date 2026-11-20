@@ -62,19 +62,19 @@ module.exports = async (req, res) => {
   if (recent.length >= 40) return send(res, 429, { error: 'Too many scans in the last hour. Try again later.' });
   recent.push(now); hits.set(ip, recent);
 
-  const image = body.image.replace(/^data:[^,]*,/, '');
-  if (image.length > 6 * 1024 * 1024) return send(res, 413, { error: 'Photo is too large.' });
+  const image = body.image.replace(/^data:[^,]*,/, ''), isPdf = body.mime === 'application/pdf';
+  if (image.length > (isPdf ? 4.3 : 6) * 1024 * 1024) return send(res, 413, { error: isPdf ? 'This PDF is too large. Use a smaller PDF or a photo.' : 'Photo is too large.' });
   const heads = (Array.isArray(body.heads) ? body.heads : []).slice(0, 80).map((h) => String(h).slice(0, 60));
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 6000, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } }, { type: 'text', text: prompt(heads) }] }] }),
+      body: JSON.stringify({ model: MODEL, max_tokens: 6000, messages: [{ role: 'user', content: [isPdf ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: image } } : { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } }, { type: 'text', text: prompt(heads) }] }] }),
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
-      const msg = r.status === 401 ? 'The API key is not valid.' : r.status === 429 ? 'The AI service is busy. Try again in a minute.' : r.status === 402 || (j.error && /credit/i.test(j.error.message || '')) ? 'The AI account has no credit left.' : 'The AI service could not read this photo.';
+      const msg = r.status === 401 ? 'The API key is not valid.' : r.status === 429 ? 'The AI service is busy. Try again in a minute.' : r.status === 402 || (j.error && /credit/i.test(j.error.message || '')) ? 'The AI account has no credit left.' : 'The AI service could not read this file.';
       return send(res, r.status === 429 ? 429 : 502, { error: msg });
     }
     const text = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
