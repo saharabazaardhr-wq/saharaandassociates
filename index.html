@@ -8,6 +8,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#10222c">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 </head>
 <body>
 <div class="app">
@@ -19,6 +23,7 @@
     <header class="top">
       <button type="button" class="btn sm" id="menuBtn" aria-label="Open menu">☰ Menu</button>
       <span class="sp"></span>
+      <button type="button" class="btn sm" id="installBtn" hidden>⇩ Install app</button>
       <span class="stat idle" id="saveStat" role="status">Loading…</span>
       <select class="fy" id="fySel" aria-label="Financial year"></select>
       <div class="newwrap">
@@ -46,5 +51,6 @@
 <script src="forms.js"></script>
 <script src="scan.js"></script>
 <script src="tally.js"></script>
+<script src="pwa.js"></script>
 </body>
 </html>
