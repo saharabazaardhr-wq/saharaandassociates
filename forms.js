@@ -115,11 +115,12 @@
     const f = old ? JSON.parse(JSON.stringify(old)) : { type, date: date0, no: E.nextNo(S, type, date0), partyId: (preset && preset.partyId) || '', refNo: '', dueDate: '', narration: '', itc: true, lines: [{ desc: '', hsn: '', qty: '', unit: 'Nos', rate: '', disc: 0, gst: S.tax.defaultGst }] };
     const SC = !old && preset && preset.scan;
     if (SC) { if (SC.date) f.date = SC.date; f.refNo = SC.refNo || ''; f.lines = SC.lines; f.no = E.nextNo(S, type, f.date); f.narration = 'Scanned bill'; }
+    f.taxMode = f.taxMode === 'incl' ? 'incl' : 'excl';
     f.dueManual = !!old; f.interManual = old ? true : false;
     const parties = () => S.parties.filter((p) => p.type === (isSale ? 'Customer' : 'Supplier') || p.type === 'Both' || p.id === f.partyId).sort((a, b) => a.name.localeCompare(b.name));
     const known = new Map();
     S.vouchers.forEach((v) => { if (v.type === type) (v.lines || []).forEach((l) => { if (l.desc) known.set(l.desc, l); }); });
-    const lineRow = (l, i) => '<tr data-i="' + i + '"><td class="sn">' + (i + 1) + '</td><td><input class="ln-desc" list="descList" value="' + esc(l.desc) + '" placeholder="Item or service" aria-label="Description"></td><td><input class="ln-hsn mono" value="' + esc(l.hsn) + '" maxlength="8" inputmode="numeric" aria-label="HSN"></td><td><input class="ln-qty n" type="number" step="any" min="0" value="' + esc(l.qty) + '" aria-label="Quantity"></td><td><select class="ln-unit" aria-label="Unit">' + opts(UNITS, l.unit || 'Nos') + '</select></td><td><input class="ln-rate n" type="number" step="any" min="0" value="' + esc(l.rate) + '" aria-label="Rate"></td><td><input class="ln-disc n" type="number" step="any" min="0" max="100" value="' + esc(l.disc) + '" aria-label="Discount percent"></td><td><select class="ln-gst" aria-label="GST rate">' + opts(GST_RATES.map((r) => [String(r), r + '%']), String(num(l.gst))) + '</select></td><td class="n ln-amt">0.00</td><td><button type="button" class="x sm" data-act="lnDel" aria-label="Remove line">×</button></td></tr>';
+    const lineRow = (l, i) => '<tr data-i="' + i + '"><td class="sn">' + (i + 1) + '</td><td><input class="ln-desc" list="descList" value="' + esc(l.desc) + '" placeholder="Item or service" aria-label="Description"></td><td><input class="ln-hsn mono" value="' + esc(l.hsn) + '" maxlength="8" inputmode="numeric" aria-label="HSN"></td><td><input class="ln-qty n" type="number" step="any" min="0" value="' + esc(l.qty) + '" aria-label="Quantity"></td><td><select class="ln-unit" aria-label="Unit">' + opts(UNITS, l.unit || 'Nos') + '</select></td><td><input class="ln-rate n" type="number" step="any" min="0" value="' + esc(l.rate) + '" aria-label="Rate"></td><td><input class="ln-disc n" type="number" step="any" min="0" max="100" value="' + esc(l.disc) + '" aria-label="Discount percent"></td><td><select class="ln-gst" aria-label="GST rate">' + opts(GST_RATES.map((r) => [String(r), r + '%']), String(num(l.gst))) + '</select></td><td class="n"><input class="ln-amt n" type="number" step="any" min="0" aria-label="Line amount"></td><td><button type="button" class="x sm" data-act="lnDel" aria-label="Remove line">×</button></td></tr>';
     const body = '<form id="invForm" autocomplete="off">' + (SC ? A.scan.notice(SC, (SC.addedSupplier ? ' New supplier added: <b>' + esc(S.parties.find((p) => p.id === f.partyId).name) + '</b>.' : '') + (f.partyId ? '' : ' Supplier not found. Choose or add one.')) : '') + '<div class="err" id="ifErr" hidden></div>'
       + '<div class="grid g4">'
       + field(isSale ? 'Customer' : 'Supplier', '<div class="inl"><select name="partyId" id="ifParty"><option value="">Select…</option>' + opts(parties().map((p) => [p.id, p.name]), f.partyId) + '</select><button type="button" class="btn sm" data-act="ifNewParty">＋ New</button></div>', 'w2')
@@ -128,7 +129,7 @@
       + field(isSale ? 'Customer PO / reference' : 'Supplier’s invoice number', '<input name="refNo" value="' + esc(f.refNo || '') + '">')
       + field('Due date', '<input type="date" name="dueDate" value="' + (f.dueDate || '') + '">')
       + '</div><div class="pos" id="ifPos"></div>'
-      + '<div class="scroll"><table class="lines"><thead><tr><th>#</th><th>Description</th><th>HSN / SAC</th><th class="n">Qty</th><th>Unit</th><th class="n">Rate ₹</th><th class="n">Disc %</th><th>GST</th><th class="n">Amount ₹</th><th></th></tr></thead><tbody id="lineBody">' + f.lines.map(lineRow).join('') + '</tbody></table></div>'
+      + '<div class="scroll"><table class="lines"><thead><tr><th>#</th><th>Description</th><th>HSN / SAC</th><th class="n">Qty</th><th>Unit</th><th class="n" id="thRate">Rate ₹</th><th class="n">Disc %</th><th>GST</th><th class="n" id="thAmt">Amount ₹</th><th></th></tr></thead><tbody id="lineBody">' + f.lines.map(lineRow).join('') + '</tbody></table></div>'
       + '<datalist id="descList">' + [...known.keys()].map((d) => '<option value="' + esc(d) + '">').join('') + '</datalist>'
       + '<div class="row between"><button type="button" class="btn sm" data-act="lnAdd">＋ Add item</button><div class="totbox" id="ifTot"></div></div>'
       + '<div class="grid g3">' + field('Narration / notes', '<textarea name="narration" rows="2">' + esc(f.narration || '') + '</textarea>', 'w2') + (isSale ? '' : '<label class="chk"><input type="checkbox" name="itc"' + (f.itc !== false ? ' checked' : '') + '><span>Claim input tax credit on this bill<small>Untick if credit is blocked; GST then becomes part of the purchase cost.</small></span></label>') + '</div></form>';
@@ -139,11 +140,14 @@
     const readLines = () => [...tb.querySelectorAll('tr')].map((tr) => ({ desc: tr.querySelector('.ln-desc').value.trim(), hsn: tr.querySelector('.ln-hsn').value.trim(), qty: tr.querySelector('.ln-qty').value, unit: tr.querySelector('.ln-unit').value, rate: tr.querySelector('.ln-rate').value, disc: tr.querySelector('.ln-disc').value || 0, gst: tr.querySelector('.ln-gst').value }));
     const inter = () => (f.interManual ? f.interstate : E.isInterstate(S, party()));
     const recalc = () => {
-      const c = E.calcLines(readLines(), inter());
-      tb.querySelectorAll('tr').forEach((tr, i) => { tr.querySelector('.ln-amt').textContent = fmt(c.lines[i].amount); });
+      const incl = f.taxMode === 'incl';
+      const c = E.calcLines(readLines(), inter(), f.taxMode);
+      tb.querySelectorAll('tr').forEach((tr, i) => { const el = tr.querySelector('.ln-amt'); if (el !== document.activeElement) { const x = incl ? c.lines[i].lineTotal : c.lines[i].amount; el.value = (num(tr.querySelector('.ln-qty').value) || num(tr.querySelector('.ln-rate').value)) ? x.toFixed(2) : ''; } });
+      ov.querySelector('#thRate').textContent = 'Rate ₹ (' + (incl ? 'incl.' : 'excl.') + ' GST)'; ov.querySelector('#thAmt').textContent = 'Amount ₹ (' + (incl ? 'incl.' : 'excl.') + ' GST)';
       const p = party(), cs = S.company;
       const supply = isSale ? (p && p.state ? p.state : 'select a customer') : (cs.state || 'your state');
-      ov.querySelector('#ifPos').innerHTML = '<span>Place of supply: <b>' + esc(supply) + '</b></span><label class="chk inline"><input type="checkbox" id="ifInter"' + (inter() ? ' checked' : '') + '><span>Inter-state supply (IGST)</span></label><span class="muted">' + (inter() ? 'IGST applies' : 'CGST + SGST apply') + '</span>';
+      ov.querySelector('#ifPos').innerHTML = '<span>Place of supply: <b>' + esc(supply) + '</b></span><label class="chk inline"><input type="checkbox" id="ifInter"' + (inter() ? ' checked' : '') + '><span>Inter-state supply (IGST)</span></label><span class="muted">' + (inter() ? 'IGST applies' : 'CGST + SGST apply') + '</span><label class="chk inline">Rates are <select id="ifMode" aria-label="Tax mode">' + opts([['excl', 'Exclusive of GST'], ['incl', 'Inclusive of GST']], f.taxMode) + '</select></label>';
+      ov.querySelector('#ifMode').onchange = (e) => { f.taxMode = e.target.value; recalc(); };
       ov.querySelector('#ifInter').onchange = (e) => { f.interManual = true; f.interstate = e.target.checked; recalc(); };
       if (SC) ov.querySelector('#scanCmp').innerHTML = A.scan.compare(SC, c.total);
       ov.querySelector('#ifTot').innerHTML = '<table><tbody><tr><td>Taxable value</td><td class="n">' + fmt(c.taxable) + '</td></tr>' + (inter() ? '<tr><td>IGST</td><td class="n">' + fmt(c.igst) + '</td></tr>' : '<tr><td>CGST</td><td class="n">' + fmt(c.cgst) + '</td></tr><tr><td>SGST</td><td class="n">' + fmt(c.sgst) + '</td></tr>') + '<tr><td>Round off</td><td class="n">' + fmt(c.roundOff) + '</td></tr><tr class="grand"><td>Total</td><td class="n">₹ ' + fmt(c.total) + '</td></tr></tbody></table><div class="words">' + esc(E.numToWords(c.total)) + '</div>';
@@ -157,6 +161,11 @@
     g('partyId').addEventListener('change', () => { f.interManual = false; autoDue(); recalc(); });
     form.addEventListener('input', (e) => {
       const t = e.target;
+      if (t.classList.contains('ln-amt')) {
+        const tr = t.closest('tr'), qEl = tr.querySelector('.ln-qty'); let q = num(qEl.value); if (!q) { q = 1; qEl.value = '1'; }
+        const den = q * (1 - num(tr.querySelector('.ln-disc').value) / 100);
+        if (den > 0) tr.querySelector('.ln-rate').value = String(+(num(t.value) / den).toFixed(6));
+      }
       if (t.classList.contains('ln-desc')) { const k = known.get(t.value); if (k) { const tr = t.closest('tr'); if (!tr.querySelector('.ln-hsn').value) tr.querySelector('.ln-hsn').value = k.hsn || ''; if (!tr.querySelector('.ln-rate').value) tr.querySelector('.ln-rate').value = k.rate; tr.querySelector('.ln-unit').value = k.unit || 'Nos'; tr.querySelector('.ln-gst').value = String(num(k.gst)); } }
       recalc();
     });
@@ -169,7 +178,7 @@
     });
     ov.querySelector('#invSave').addEventListener('click', () => {
       const lines = readLines().filter((l) => l.desc || num(l.qty) || num(l.rate));
-      const base = Object.assign({}, old || {}, { id: old ? old.id : 'v' + E.uid(), ts: old ? old.ts : Date.now(), type, date: g('date').value, no: g('no').value.trim(), partyId: g('partyId').value, refNo: g('refNo').value.trim(), dueDate: g('dueDate').value, narration: g('narration').value.trim(), itc: isSale ? undefined : g('itc').checked, lines, interstate: inter() });
+      const base = Object.assign({}, old || {}, { id: old ? old.id : 'v' + E.uid(), ts: old ? old.ts : Date.now(), type, date: g('date').value, no: g('no').value.trim(), partyId: g('partyId').value, refNo: g('refNo').value.trim(), dueDate: g('dueDate').value, narration: g('narration').value.trim(), itc: isSale ? undefined : g('itc').checked, lines, interstate: inter(), taxMode: f.taxMode });
       const v = E.buildInvoice(S, base);
       const err = E.validateVoucher(S, v);
       if (!isSale && v.partyId && v.refNo && S.vouchers.some((x) => x.type === 'purchase' && x.id !== v.id && x.partyId === v.partyId && x.refNo === v.refNo)) err.push('This supplier invoice number is already recorded for this supplier.');
@@ -355,7 +364,7 @@
     return '<div class="inv"><div class="ihead"><div><h2>' + esc(c.legalName || c.name) + '</h2><small>' + esc([c.city, c.state].filter(Boolean).join(', ')) + (t.gstin ? ' · GSTIN ' + esc(t.gstin) : '') + '</small></div><div class="t"><h2>' + title + '</h2><small>' + (inter ? 'Inter-state supply (IGST)' : 'Intra-state supply (CGST + SGST)') + '</small></div></div>'
       + '<div class="meta"><div class="box"><h4>' + (sale ? 'Billed by' : 'Supplier') + '</h4>' + partyBlock(p, c, t, sale) + '</div><div class="box"><h4>' + (sale ? 'Billed to' : 'Billed to (us)') + '</h4>' + partyBlock(p, c, t, !sale) + '</div></div>'
       + '<div class="meta"><div class="box">' + (sale ? 'Invoice no: <b>' + esc(v.no) + '</b>' : 'Supplier invoice: <b>' + esc(v.refNo || '—') + '</b><br>Our ref: ' + esc(v.no)) + '<br>Date: <b>' + fdate(v.date) + '</b>' + (v.dueDate ? '<br>Due date: ' + fdate(v.dueDate) : '') + '</div><div class="box">Place of supply: <b>' + esc(sale ? (p.state || '') : (c.state || '')) + '</b>' + (sale && v.refNo ? '<br>Customer PO / ref: ' + esc(v.refNo) : '') + (v.narration ? '<br>' + esc(v.narration) : '') + '</div></div>'
-      + '<table><thead><tr><th>#</th><th>Description</th><th>HSN/SAC</th><th class="n">Qty</th><th class="n">Rate</th><th class="n">Disc</th><th class="n">Taxable</th><th class="n">GST</th><th class="n">Amount</th></tr></thead><tbody>' + items + '</tbody></table>'
+      + '<table><thead><tr><th>#</th><th>Description</th><th>HSN/SAC</th><th class="n">Qty</th><th class="n">Rate' + (v.taxMode === 'incl' ? ' (incl. GST)' : '') + '</th><th class="n">Disc</th><th class="n">Taxable</th><th class="n">GST</th><th class="n">Amount</th></tr></thead><tbody>' + items + '</tbody></table>'
       + '<table class="tot"><tbody><tr><td>Taxable value</td><td class="n">' + fmt(v.taxable) + '</td></tr>' + (inter ? '<tr><td>IGST</td><td class="n">' + fmt(v.igst) + '</td></tr>' : '<tr><td>CGST</td><td class="n">' + fmt(v.cgst) + '</td></tr><tr><td>SGST</td><td class="n">' + fmt(v.sgst) + '</td></tr>') + (v.roundOff ? '<tr><td>Round off</td><td class="n">' + fmt(v.roundOff) + '</td></tr>' : '') + '<tr class="g"><td>Total</td><td class="n">₹ ' + fmt(v.total) + '</td></tr></tbody></table>'
       + '<div class="words">' + esc(E.numToWords(v.total)) + '</div>'
       + '<table><thead><tr><th>GST rate</th><th class="n">Taxable</th>' + (inter ? '<th class="n">IGST</th>' : '<th class="n">CGST</th><th class="n">SGST</th>') + '</tr></thead><tbody>' + taxRows + '</tbody></table>'

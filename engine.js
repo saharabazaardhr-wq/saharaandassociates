@@ -105,17 +105,24 @@
   }
 
   // ---------- invoice math ----------
-  function calcLines(lines, interstate) {
+  /** taxMode 'excl' (default): rates are before GST. 'incl': rates already include GST. */
+  function calcLines(lines, interstate, taxMode) {
+    const incl = taxMode === 'incl';
     let taxable = 0, cgst = 0, sgst = 0, igst = 0, gross = 0, disc = 0;
     const out = (lines || []).map((l) => {
       const base = r2(num(l.qty) * num(l.rate));
       const dv = r2(base * num(l.disc) / 100);
       const tv = r2(base - dv);
       const g = num(l.gst);
-      let c = 0, s = 0, i = 0;
-      if (interstate) i = r2(tv * g / 100); else { c = r2(tv * g / 200); s = r2(tv * g / 200); }
-      gross += base; disc += dv; taxable += tv; cgst += c; sgst += s; igst += i;
-      return Object.assign({}, l, { amount: tv, discAmt: dv, cgst: c, sgst: s, igst: i });
+      let c = 0, s = 0, i = 0, tvx = tv, gl = base, dl = dv;
+      if (incl) {
+        tvx = r2(tv / (1 + g / 100));
+        const tx = r2(tv - tvx);
+        gl = r2(base / (1 + g / 100)); dl = r2(gl - tvx);
+        if (interstate) i = tx; else { c = r2(tx / 2); s = r2(tx - c); }
+      } else if (interstate) i = r2(tv * g / 100); else { c = r2(tv * g / 200); s = r2(tv * g / 200); }
+      gross += gl; disc += dl; taxable += tvx; cgst += c; sgst += s; igst += i;
+      return Object.assign({}, l, { amount: tvx, discAmt: dl, cgst: c, sgst: s, igst: i, lineTotal: r2(tvx + c + s + i) });
     });
     taxable = r2(taxable); cgst = r2(cgst); sgst = r2(sgst); igst = r2(igst);
     const tax = r2(cgst + sgst + igst);
@@ -142,9 +149,9 @@
   function buildInvoice(state, base) {
     const party = state.parties.find((p) => p.id === base.partyId);
     const inter = base.interstate != null ? !!base.interstate : isInterstate(state, party);
-    const c = calcLines(base.lines, inter);
+    const c = calcLines(base.lines, inter, base.taxMode);
     return Object.assign({}, base, {
-      interstate: inter, lines: c.lines, gross: c.gross, disc: c.disc, taxable: c.taxable,
+      taxMode: base.taxMode === 'incl' ? 'incl' : 'excl', interstate: inter, lines: c.lines, gross: c.gross, disc: c.disc, taxable: c.taxable,
       cgst: c.cgst, sgst: c.sgst, igst: c.igst, tax: c.tax, roundOff: c.roundOff, total: c.total,
     });
   }

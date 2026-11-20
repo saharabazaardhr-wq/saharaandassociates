@@ -229,3 +229,5 @@ details.entries { margin-top: 18px; } details.entries summary { cursor: pointer;
 .note.scan { margin-bottom: 12px; }
 .note.scan #scanCmp { margin-top: 4px; font-weight: 500; }
 .menu .scanbtn { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 10px; color: var(--accent); }
+table.lines input.ln-amt { width: 112px; font-family: var(--mono); font-size: 13px; }
+.chk.inline select { width: auto; padding: 3px 6px; margin-left: 6px; }
