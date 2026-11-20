@@ -101,6 +101,7 @@
       parties: [],
       vouchers: [],
       stock: { opening: 0, closing: {} },
+      items: [],
     };
   }
 
@@ -569,6 +570,46 @@
   }
 
   // ---------- sample data (clearly demo) ----------
+
+  // ---------- stock items ----------
+  const itemKey = (name) => String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const findItem = (state, name) => { const k = itemKey(name); return k ? (state.items || []).find((i) => itemKey(i.name) === k) : null; };
+  /** Quantity movement per item: purchased, sold and stock in hand. exclude = voucher id to ignore (when editing). */
+  function itemStock(state, exclude) {
+    const m = new Map();
+    (state.items || []).forEach((i) => m.set(itemKey(i.name), { open: num(i.openQty), inQty: 0, outQty: 0 }));
+    (state.vouchers || []).forEach((v) => {
+      if (v.id === exclude || (v.type !== 'sale' && v.type !== 'purchase')) return;
+      (v.lines || []).forEach((l) => { const e = m.get(itemKey(l.desc)); if (!e) return; if (v.type === 'purchase') e.inQty += num(l.qty); else e.outQty += num(l.qty); });
+    });
+    m.forEach((e) => { e.inQty = r2(e.inQty); e.outQty = r2(e.outQty); e.onHand = r2(e.open + e.inQty - e.outQty); });
+    return m;
+  }
+  /** Add / refresh stock items from the lines of a sale or purchase. Returns true when the item list changed. */
+  function syncItems(state, v) {
+    if (!v || (v.type !== 'sale' && v.type !== 'purchase')) return false;
+    state.items = state.items || [];
+    let changed = false;
+    (v.lines || []).forEach((l) => {
+      const name = String(l.desc || '').trim(); if (!name) return;
+      const g = num(l.gst), exRate = v.taxMode === 'incl' ? r2(num(l.rate) / (1 + g / 100)) : r2(num(l.rate));
+      let it = findItem(state, name);
+      if (!it) {
+        it = { id: 'i' + uid(), name, hsn: l.hsn || '', unit: l.unit || 'Nos', gst: g, saleRate: 0, purchaseRate: 0, openQty: 0 };
+        state.items.push(it); changed = true;
+      }
+      if (!it.hsn && l.hsn) { it.hsn = l.hsn; changed = true; }
+      if (v.type === 'purchase' && exRate > 0 && it.purchaseRate !== exRate) { it.purchaseRate = exRate; changed = true; }
+      if (v.type === 'sale' && exRate > 0 && !num(it.saleRate)) { it.saleRate = exRate; changed = true; }
+    });
+    return changed;
+  }
+  function syncAll(state) {
+    let ch = false;
+    (state.vouchers || []).slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.ts || 0) - (b.ts || 0))).forEach((v) => { if (syncItems(state, v)) ch = true; });
+    return ch;
+  }
+
   function sampleData(todayISO) {
     const st = defaultState(todayISO);
     const sy = fyStartYear(todayISO), start = fyRange(sy).from;
@@ -639,13 +680,16 @@
     sale(180, c4, [L('Corrugated cartons 5-ply', '4819', 600, 'Nos', 54, 0, 12)]);
     sale(186, c2, [L('Industrial power drill 750W', '8467', 12, 'Nos', 3450, 0, 18)]);
     st.stock.closing[sy] = 520000;
+    syncAll(st);
+    const mv = itemStock(st);
+    st.items.forEach((i) => { const m = mv.get(itemKey(i.name)); if (m && m.outQty > m.inQty) i.openQty = Math.ceil(m.outQty - m.inQty); });
     return st;
   }
 
   return {
     r2, num, uid, pad, STATES, stateName, GSTIN_RE, PAN_RE, GROUPS, GROUP_ORDER, isNominal, TYPE_LABEL, PREFIX,
     fyStartYear, fyRange, fyLabel, addDays, daysBetween, fyMonths, MONTHS,
-    defaultAccounts, defaultState, calcLines, calcExpense, isInterstate, buildInvoice, buildExpense,
+    itemKey, findItem, itemStock, syncItems, syncAll, defaultAccounts, defaultState, calcLines, calcExpense, isInterstate, buildInvoice, buildExpense,
     postingsOf, buildIndex, nameOf, openingOf, sumRange, balanceAt, ledger,
     allocMap, partyBills, ageing, autoAllocate, partyKind,
     stockOpening, stockClosing, pnl, priorProfit, openingDifference, balanceSheet, trialBalance,

@@ -231,3 +231,4 @@ details.entries { margin-top: 18px; } details.entries summary { cursor: pointer;
 .menu .scanbtn { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 10px; color: var(--accent); }
 table.lines input.ln-amt { width: 112px; font-family: var(--mono); font-size: 13px; }
 .chk.inline select { width: auto; padding: 3px 6px; margin-left: 6px; }
+small.stk { display: block; font-size: 11px; color: var(--muted); min-height: 0; margin-top: 2px; } small.stk.bad { color: var(--bad); font-weight: 600; }

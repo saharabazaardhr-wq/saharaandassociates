@@ -118,9 +118,9 @@
     f.taxMode = f.taxMode === 'incl' ? 'incl' : 'excl';
     f.dueManual = !!old; f.interManual = old ? true : false;
     const parties = () => S.parties.filter((p) => p.type === (isSale ? 'Customer' : 'Supplier') || p.type === 'Both' || p.id === f.partyId).sort((a, b) => a.name.localeCompare(b.name));
-    const known = new Map();
-    S.vouchers.forEach((v) => { if (v.type === type) (v.lines || []).forEach((l) => { if (l.desc) known.set(l.desc, l); }); });
-    const lineRow = (l, i) => '<tr data-i="' + i + '"><td class="sn">' + (i + 1) + '</td><td><input class="ln-desc" list="descList" value="' + esc(l.desc) + '" placeholder="Item or service" aria-label="Description"></td><td><input class="ln-hsn mono" value="' + esc(l.hsn) + '" maxlength="8" inputmode="numeric" aria-label="HSN"></td><td><input class="ln-qty n" type="number" step="any" min="0" value="' + esc(l.qty) + '" aria-label="Quantity"></td><td><select class="ln-unit" aria-label="Unit">' + opts(UNITS, l.unit || 'Nos') + '</select></td><td><input class="ln-rate n" type="number" step="any" min="0" value="' + esc(l.rate) + '" aria-label="Rate"></td><td><input class="ln-disc n" type="number" step="any" min="0" max="100" value="' + esc(l.disc) + '" aria-label="Discount percent"></td><td><select class="ln-gst" aria-label="GST rate">' + opts(GST_RATES.map((r) => [String(r), r + '%']), String(num(l.gst))) + '</select></td><td class="n"><input class="ln-amt n" type="number" step="any" min="0" aria-label="Line amount"></td><td><button type="button" class="x sm" data-act="lnDel" aria-label="Remove line">×</button></td></tr>';
+    const stockMap = E.itemStock(S, old ? old.id : null);
+    const itemRate = (it) => { const ex = num(isSale ? it.saleRate : it.purchaseRate); return f.taxMode === 'incl' ? r2(ex * (1 + num(it.gst) / 100)) : ex; };
+    const lineRow = (l, i) => '<tr data-i="' + i + '"><td class="sn">' + (i + 1) + '</td><td><input class="ln-desc" list="descList" value="' + esc(l.desc) + '" placeholder="Item or service" aria-label="Description"><small class="stk"></small></td><td><input class="ln-hsn mono" value="' + esc(l.hsn) + '" maxlength="8" inputmode="numeric" aria-label="HSN"></td><td><input class="ln-qty n" type="number" step="any" min="0" value="' + esc(l.qty) + '" aria-label="Quantity"></td><td><select class="ln-unit" aria-label="Unit">' + opts(UNITS, l.unit || 'Nos') + '</select></td><td><input class="ln-rate n" type="number" step="any" min="0" value="' + esc(l.rate) + '" aria-label="Rate"></td><td><input class="ln-disc n" type="number" step="any" min="0" max="100" value="' + esc(l.disc) + '" aria-label="Discount percent"></td><td><select class="ln-gst" aria-label="GST rate">' + opts(GST_RATES.map((r) => [String(r), r + '%']), String(num(l.gst))) + '</select></td><td class="n"><input class="ln-amt n" type="number" step="any" min="0" aria-label="Line amount"></td><td><button type="button" class="x sm" data-act="lnDel" aria-label="Remove line">×</button></td></tr>';
     const body = '<form id="invForm" autocomplete="off">' + (SC ? A.scan.notice(SC, (SC.addedSupplier ? ' New supplier added: <b>' + esc(S.parties.find((p) => p.id === f.partyId).name) + '</b>.' : '') + (f.partyId ? '' : ' Supplier not found. Choose or add one.')) : '') + '<div class="err" id="ifErr" hidden></div>'
       + '<div class="grid g4">'
       + field(isSale ? 'Customer' : 'Supplier', '<div class="inl"><select name="partyId" id="ifParty"><option value="">Select…</option>' + opts(parties().map((p) => [p.id, p.name]), f.partyId) + '</select><button type="button" class="btn sm" data-act="ifNewParty">＋ New</button></div>', 'w2')
@@ -130,7 +130,7 @@
       + field('Due date', '<input type="date" name="dueDate" value="' + (f.dueDate || '') + '">')
       + '</div><div class="pos" id="ifPos"></div>'
       + '<div class="scroll"><table class="lines"><thead><tr><th>#</th><th>Description</th><th>HSN / SAC</th><th class="n">Qty</th><th>Unit</th><th class="n" id="thRate">Rate ₹</th><th class="n">Disc %</th><th>GST</th><th class="n" id="thAmt">Amount ₹</th><th></th></tr></thead><tbody id="lineBody">' + f.lines.map(lineRow).join('') + '</tbody></table></div>'
-      + '<datalist id="descList">' + [...known.keys()].map((d) => '<option value="' + esc(d) + '">').join('') + '</datalist>'
+      + '<datalist id="descList">' + (S.items || []).slice().sort((a, b) => a.name.localeCompare(b.name)).map((it) => { const m = stockMap.get(E.itemKey(it.name)); return '<option value="' + esc(it.name) + '" label="' + esc([it.hsn && 'HSN ' + it.hsn, 'Stock ' + (m ? m.onHand : 0) + ' ' + (it.unit || '')].filter(Boolean).join(' · ')) + '">'; }).join('') + '</datalist>'
       + '<div class="row between"><button type="button" class="btn sm" data-act="lnAdd">＋ Add item</button><div class="totbox" id="ifTot"></div></div>'
       + '<div class="grid g3">' + field('Narration / notes', '<textarea name="narration" rows="2">' + esc(f.narration || '') + '</textarea>', 'w2') + (isSale ? '' : '<label class="chk"><input type="checkbox" name="itc"' + (f.itc !== false ? ' checked' : '') + '><span>Claim input tax credit on this bill<small>Untick if credit is blocked; GST then becomes part of the purchase cost.</small></span></label>') + '</div></form>';
     const ov = A.openModal({ title: (old ? 'Edit ' : 'New ') + (isSale ? 'sale invoice' : 'purchase bill'), size: 'xl', body, foot: '<button type="button" class="btn" data-act="mClose">Cancel</button><button type="button" class="btn pri" id="invSave">Save ' + (isSale ? 'invoice' : 'bill') + '</button>' });
@@ -143,6 +143,13 @@
       const incl = f.taxMode === 'incl';
       const c = E.calcLines(readLines(), inter(), f.taxMode);
       tb.querySelectorAll('tr').forEach((tr, i) => { const el = tr.querySelector('.ln-amt'); if (el !== document.activeElement) { const x = incl ? c.lines[i].lineTotal : c.lines[i].amount; el.value = (num(tr.querySelector('.ln-qty').value) || num(tr.querySelector('.ln-rate').value)) ? x.toFixed(2) : ''; } });
+      tb.querySelectorAll('tr').forEach((tr) => {
+        const it = E.findItem(S, tr.querySelector('.ln-desc').value), hint = tr.querySelector('.stk'); if (!hint) return;
+        if (!it) { hint.textContent = ''; hint.className = 'stk'; return; }
+        const m = stockMap.get(E.itemKey(it.name)), avail = m ? m.onHand : 0, q = num(tr.querySelector('.ln-qty').value);
+        const low = isSale && q > avail;
+        hint.className = 'stk' + (low || avail < 0 ? ' bad' : ''); hint.textContent = (low ? 'Only ' : 'In stock: ') + avail + ' ' + (it.unit || '') + (low ? ' in stock' : '');
+      });
       ov.querySelector('#thRate').textContent = 'Rate ₹ (' + (incl ? 'incl.' : 'excl.') + ' GST)'; ov.querySelector('#thAmt').textContent = 'Amount ₹ (' + (incl ? 'incl.' : 'excl.') + ' GST)';
       const p = party(), cs = S.company;
       const supply = isSale ? (p && p.state ? p.state : 'select a customer') : (cs.state || 'your state');
@@ -166,7 +173,16 @@
         const den = q * (1 - num(tr.querySelector('.ln-disc').value) / 100);
         if (den > 0) tr.querySelector('.ln-rate').value = String(+(num(t.value) / den).toFixed(6));
       }
-      if (t.classList.contains('ln-desc')) { const k = known.get(t.value); if (k) { const tr = t.closest('tr'); if (!tr.querySelector('.ln-hsn').value) tr.querySelector('.ln-hsn').value = k.hsn || ''; if (!tr.querySelector('.ln-rate').value) tr.querySelector('.ln-rate').value = k.rate; tr.querySelector('.ln-unit').value = k.unit || 'Nos'; tr.querySelector('.ln-gst').value = String(num(k.gst)); } }
+      if (t.classList.contains('ln-desc')) {
+        const it = E.findItem(S, t.value);
+        if (it) {
+          const tr = t.closest('tr');
+          if (!tr.querySelector('.ln-hsn').value) tr.querySelector('.ln-hsn').value = it.hsn || '';
+          const r = itemRate(it); if (!tr.querySelector('.ln-rate').value && r) tr.querySelector('.ln-rate').value = String(r);
+          tr.querySelector('.ln-unit').value = it.unit || 'Nos'; tr.querySelector('.ln-gst').value = String(num(it.gst));
+          if (!tr.querySelector('.ln-qty').value) tr.querySelector('.ln-qty').value = '1';
+        }
+      }
       recalc();
     });
     form.addEventListener('change', (e) => { if (e.target.classList.contains('ln-gst') || e.target.classList.contains('ln-unit')) recalc(); });
@@ -186,9 +202,45 @@
       const eb = ov.querySelector('#ifErr');
       if (err.length) { eb.hidden = false; eb.innerHTML = err.map(esc).join('<br>'); eb.scrollIntoView({ block: 'nearest' }); return; }
       if (old && old.alloc) v.alloc = old.alloc;
+      if (E.syncItems(S, v)) A.saveMeta();
       A.upsertVoucher(v); A.closeModal(); A.toast((isSale ? 'Invoice ' : 'Bill ') + v.no + ' saved');
       if (isSale && !old) A.forms.view(v.id);
     });
+  };
+
+
+  // ---------- stock item form ----------
+  A.forms.item = function (id) {
+    const S = A.S, it = id ? S.items.find((x) => x.id === id) : { name: '', hsn: '', unit: 'Nos', gst: S.tax.defaultGst, saleRate: '', purchaseRate: '', openQty: '' };
+    if (!it) return;
+    const used = id && S.vouchers.some((v) => (v.type === 'sale' || v.type === 'purchase') && (v.lines || []).some((l) => E.itemKey(l.desc) === E.itemKey(it.name)));
+    const ov = A.openModal({
+      title: id ? 'Edit stock item' : 'New stock item', size: 'md',
+      body: '<form id="itemForm" autocomplete="off"><div class="err" id="itErr" hidden></div><div class="grid g2">'
+        + field('Item name', '<input name="name" value="' + esc(it.name) + '" required>', 'w2')
+        + field('HSN / SAC', '<input name="hsn" class="mono" maxlength="8" inputmode="numeric" value="' + esc(it.hsn) + '">')
+        + field('Unit', '<select name="unit">' + opts(UNITS, it.unit || 'Nos') + '</select>')
+        + field('GST rate', '<select name="gst">' + opts(GST_RATES.map((r) => [String(r), r + '%']), String(num(it.gst))) + '</select>')
+        + field('Opening stock (qty)', '<input name="openQty" type="number" step="any" value="' + esc(it.openQty) + '">', '', 'Quantity in hand when your books begin')
+        + field('Selling rate ₹ (before GST)', '<input name="saleRate" type="number" step="any" min="0" value="' + esc(it.saleRate || '') + '">', '', 'Fills automatically in sale invoices')
+        + field('Purchase rate ₹ (before GST)', '<input name="purchaseRate" type="number" step="any" min="0" value="' + esc(it.purchaseRate || '') + '">', '', 'Fills automatically in purchase bills')
+        + '</div></form>',
+      foot: (id ? '<button type="button" class="btn dng left" data-act="delItem" data-id="' + id + '"' + (used ? ' disabled title="Used in invoices"' : '') + '>Delete</button>' : '') + '<button type="button" class="btn" data-act="mClose">Cancel</button><button type="button" class="btn pri" id="itemSave">Save item</button>',
+    });
+    const form = ov.querySelector('#itemForm');
+    const submit = () => {
+      const d = read(form), eb = ov.querySelector('#itErr'); d.name = d.name.trim().replace(/\s+/g, ' ');
+      if (!d.name) { eb.hidden = false; eb.textContent = 'Enter the item name.'; return; }
+      if (S.items.some((x) => x.id !== id && E.itemKey(x.name) === E.itemKey(d.name))) { eb.hidden = false; eb.textContent = 'An item with this name already exists.'; return; }
+      const rec = Object.assign({}, it, { name: d.name, hsn: d.hsn.trim(), unit: d.unit, gst: num(d.gst), openQty: num(d.openQty), saleRate: r2(num(d.saleRate)), purchaseRate: r2(num(d.purchaseRate)) });
+      if (id) {
+        if (E.itemKey(it.name) !== E.itemKey(d.name)) S.vouchers.forEach((v) => { if ((v.type === 'sale' || v.type === 'purchase') && (v.lines || []).some((l) => E.itemKey(l.desc) === E.itemKey(it.name))) { v.lines.forEach((l) => { if (E.itemKey(l.desc) === E.itemKey(it.name)) l.desc = d.name; }); A.store.enqueue({ kind: 'voucher', id: v.id }); } });
+        S.items[S.items.findIndex((x) => x.id === id)] = rec;
+      } else { rec.id = 'i' + E.uid(); S.items.push(rec); }
+      A.saveMeta(); A.closeModal(); A.refresh(); A.toast('Item saved');
+    };
+    ov.querySelector('#itemSave').addEventListener('click', submit);
+    form.addEventListener('submit', (e) => { e.preventDefault(); submit(); });
   };
 
   // ---------- receipt / payment form ----------
@@ -435,6 +487,13 @@
     if (!(await A.confirm('Delete party <b>' + esc(p.name) + '</b>?', 'Delete', true))) return;
     A.S.parties = A.S.parties.filter((x) => x.id !== p.id); A.store.enqueue({ kind: 'party', id: p.id }); A.closeModal(); location.hash = 'parties'; A.refresh(); A.toast('Party deleted');
   };
+  A.H.newItem = () => A.forms.item(null);
+  A.H.editItem = (el) => A.forms.item(el.dataset.id);
+  A.H.delItem = async (el) => {
+    const it = A.S.items.find((x) => x.id === el.dataset.id); if (!it) return;
+    if (!(await A.confirm('Delete stock item <b>' + esc(it.name) + '</b>?', 'Delete', true))) return;
+    A.S.items = A.S.items.filter((x) => x.id !== it.id); A.saveMeta(); A.closeModal(); A.refresh(); A.toast('Item deleted');
+  };
   A.H.newAcct = () => A.forms.account(null);
   A.H.editAcct = (el) => A.forms.account(el.dataset.id);
   A.H.delAcct = async (el) => {
@@ -467,11 +526,12 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && A.modals.length && !document.querySelector('.ov.ovtop')) A.closeModal(); });
 
   // filters (inputs outside modals)
-  const refreshList = (t) => { const a = document.getElementById('listArea'); if (!a) return; a.innerHTML = t === 'day' ? A.dayList() : t === 'party' ? A.partyList() : t === 'ledger' ? A.ledgerHTML() : A.listArea(t); };
+  const refreshList = (t) => { if (t === 'item') { const ia = document.getElementById('itemArea'); if (ia) ia.innerHTML = A.itemArea(); return; } const a = document.getElementById('listArea'); if (!a) return; a.innerHTML = t === 'day' ? A.dayList() : t === 'party' ? A.partyList() : t === 'ledger' ? A.ledgerHTML() : A.listArea(t); };
   const onFilter = (e) => {
     const el = e.target.closest('[data-f]'); if (!el || el.closest('.ov')) return;
     const k = el.dataset.f, t = el.dataset.t, v = el.value;
-    if (k === 'partyQ') { A.ui.partyQ = v; refreshList('party'); }
+    if (k === 'itemQ') { A.ui.itemQ = v; refreshList('item'); }
+    else if (k === 'partyQ') { A.ui.partyQ = v; refreshList('party'); }
     else if (k === 'ledKey') { A.ui.led.key = v; refreshList('ledger'); }
     else if (k === 'ledFrom') { A.ui.led.from = v; refreshList('ledger'); }
     else if (k === 'ledTo') { A.ui.led.to = v; refreshList('ledger'); }
@@ -523,7 +583,9 @@
       S = Object.assign(base, S);
       if (!S.accounts || !S.accounts.length) S.accounts = E.defaultAccounts();
       if (!S.stock) S.stock = { opening: 0, closing: {} };
+      if (!Array.isArray(S.items)) S.items = [];
       A.S = S;
+      if (!S.items.length && S.vouchers.some((v) => v.type === 'sale' || v.type === 'purchase')) { if (E.syncAll(S)) A.saveMeta(); }
       if (S.migrate) { delete S.migrate; A.store.persistAll(); }
     } else { A.S = E.sampleData(today()); A.S.demo = true; }
     A.ui.fy = E.fyStartYear(today());

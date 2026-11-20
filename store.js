@@ -16,7 +16,7 @@
   };
 
   const clone = (o) => JSON.parse(JSON.stringify(o));
-  const metaOf = (S) => ({ v: 1, booksFrom: S.booksFrom, company: S.company, tax: S.tax, accounts: S.accounts, stock: S.stock, shards: shardsOf(S) });
+  const metaOf = (S) => ({ v: 1, booksFrom: S.booksFrom, company: S.company, tax: S.tax, accounts: S.accounts, stock: S.stock, items: S.items || [], shards: shardsOf(S) });
   const shardsOf = (S) => [...new Set(S.vouchers.map((v) => E.fyStartYear(v.date)))].sort();
 
   const store = A.store = {
@@ -35,7 +35,7 @@
           if (snap.exists) {
             const m = clone(snap.data());
             const S = E.defaultState(A.u.today());
-            Object.assign(S, { booksFrom: m.booksFrom || S.booksFrom, company: m.company || S.company, tax: m.tax || S.tax, accounts: m.accounts || S.accounts, stock: m.stock || S.stock });
+            Object.assign(S, { booksFrom: m.booksFrom || S.booksFrom, company: m.company || S.company, tax: m.tax || S.tax, accounts: m.accounts || S.accounts, stock: m.stock || S.stock, items: m.items || [] });
             const years = m.shards || [];
             const [ps, ...vs] = await Promise.all([base.collection('parties').get(), ...years.map((y) => base.collection('vch_' + y).get())]);
             S.parties = ps.docs.map((d) => clone(d.data()));
