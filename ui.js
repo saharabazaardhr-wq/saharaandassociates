@@ -62,13 +62,22 @@
     const t = document.getElementById('toast'); t.className = 'toast show ' + (kind || ''); t.textContent = msg;
     clearTimeout(toastT); toastT = setTimeout(() => { t.className = 'toast'; }, 3600);
   };
-  A.deliver = async function (name, text) {
+  const browserSave = (name, data) => {
+    const isCsv = /\.csv$/i.test(name), blob = data instanceof Blob ? data : new Blob([isCsv ? '\ufeff' : '', data], { type: isCsv ? 'text/csv;charset=utf-8' : 'application/octet-stream' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); A.toast('Downloaded ' + name);
+  };
+  A.deliver = async function (name, data) {
     const dl = await A.use('downloads');
     if (dl) {
-      try { await dl.save({ filename: name, data: text }); A.toast('Saved ' + name); return; } catch (e) { if (e && e.code === 'declined') return; }
+      try { await dl.save({ filename: name, data }); A.toast('Saved ' + name); return; } catch (e) { if (e && e.code === 'declined') return; }
     }
-    A.openModal({ title: name, size: 'md', body: '<p class="muted">Downloads are not available in this view. Copy the text below instead.</p><textarea id="copyTa" class="mono" rows="14" readonly>' + esc(text) + '</textarea>', foot: '<button type="button" class="btn" data-act="mClose">Close</button><button type="button" class="btn pri" data-act="copyTa">Copy</button>' });
+    if (!window.claude) { browserSave(name, data); return; }
+    if (typeof data !== 'string') { A.toast('Downloads are not available in this view.', 'bad'); return; }
+    A.openModal({ title: name, size: 'md', body: '<p class="muted">Downloads are not available in this view. Copy the text below instead.</p><textarea id="copyTa" class="mono" rows="14" readonly>' + esc(data) + '</textarea>', foot: '<button type="button" class="btn" data-act="mClose">Close</button><button type="button" class="btn pri" data-act="copyTa">Copy</button>' });
   };
+  const libs = {};
+  A.loadScript = (src) => libs[src] || (libs[src] = new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => { delete libs[src]; rej(new Error('load ' + src)); }; document.head.appendChild(s); }));
 
   // ---------- derived data ----------
   A.fyList = function () {

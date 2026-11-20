@@ -473,13 +473,75 @@
       const al = (v.alloc || []).filter((a) => a.amt > 0).map((a) => { const bv = A.S.vouchers.find((x) => x.id === a.ref); return esc(bv ? (bv.refNo && bv.type === 'purchase' ? bv.refNo : bv.no) : (a.ref.startsWith('open:') ? 'Opening balance' : '(deleted bill)')) + ' · ' + fmt(a.amt); }).join('<br>');
       main = '<dl class="kvs wide">' + kv('Voucher', '<b>' + esc(v.no) + '</b> ' + chip(E.TYPE_LABEL[v.type], 't-' + v.type)) + kv('Date', fdate(v.date)) + kv('Particulars', esc(A.voucherParticulars(v))) + kv(v.type === 'receipt' ? 'Deposited in' : v.type === 'payment' ? 'Paid from' : '', v.mode ? esc(E.nameOf(A.idx, v.mode)) : '') + kv('Amount', '<b>₹ ' + fmt(E.voucherAmount(v)) + '</b>') + kv('TDS', num(v.tds) ? fmt(v.tds) : '') + kv('GST', v.tax ? fmt(v.tax) : '') + kv('Reference', esc(v.refNo)) + kv('Matched bills', al) + kv('Narration', esc(v.narration)) + '</dl>';
     }
-    const dl = v.type === 'sale' || v.type === 'purchase' ? '<button type="button" class="btn" data-act="dlInv" data-id="' + id + '">Download ' + (v.type === 'sale' ? 'invoice' : 'bill') + ' (HTML)</button>' : '';
+    const dl = v.type === 'sale' || v.type === 'purchase' ? '<button type="button" class="btn" data-act="printInv" data-id="' + id + '">🖨 Print</button><button type="button" class="btn" data-act="pdfInv" data-id="' + id + '">⇩ Download PDF</button>' : '';
     A.openModal({ title: E.TYPE_LABEL[v.type] + ' · ' + v.no, size: v.type === 'sale' || v.type === 'purchase' ? 'xl' : 'md', body: main + entries, foot: '<button type="button" class="btn left" data-act="vEdit2" data-id="' + id + '">Edit</button>' + dl + '<button type="button" class="btn pri" data-act="mClose">Close</button>' });
   };
   A.invoiceFile = function (id) {
     const v = A.S.vouchers.find((x) => x.id === id); if (!v) return;
     const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc((v.type === 'sale' ? 'Invoice ' : 'Bill ') + v.no) + '</title><style>' + INV_CSS + '@media print{body{padding:0}}</style></head><body>' + invoiceHTML(v) + '</body></html>';
     A.deliver((v.type === 'sale' ? 'Invoice_' : 'Bill_') + v.no.replace(/[^A-Za-z0-9-]+/g, '-') + '.html', html);
+  };
+
+
+  A.printInvoice = function (id) {
+    const v = A.S.vouchers.find((x) => x.id === id); if (!v) return;
+    const fr = document.createElement('iframe'); fr.setAttribute('aria-hidden', 'true'); fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+    document.body.appendChild(fr);
+    const d = fr.contentWindow.document; d.open(); d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc((v.type === 'sale' ? 'Invoice ' : 'Bill ') + v.no) + '</title><style>' + INV_CSS + '@page{size:A4;margin:10mm}@media print{body{padding:0}}</style></head><body>' + invoiceHTML(v) + '</body></html>'); d.close();
+    setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { A.toast('Printing is not available here. Use Download PDF.', 'bad'); } setTimeout(() => fr.remove(), 60000); }, 250);
+  };
+  A.invoicePDF = async function (id) {
+    const v = A.S.vouchers.find((x) => x.id === id); if (!v) return;
+    try { await A.loadScript('lib/jspdf.umd.min.js'); await A.loadScript('lib/jspdf.plugin.autotable.min.js'); } catch (e) { A.toast('The PDF tool could not load. Use Print and choose Save as PDF.', 'bad'); return; }
+    const S = A.S, c = S.company, t = S.tax, p = S.parties.find((x) => x.id === v.partyId) || { name: '(deleted party)' }, sale = v.type === 'sale', inter = !!v.interstate;
+    const R = (n) => 'Rs. ' + fmt(n);
+    const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' }), W = 210, M = 12; let y = 14;
+    const txt = (s, x, yy, o) => doc.text(String(s), x, yy, o);
+    const need = (h) => { if (y + h > 285) { doc.addPage(); y = 14; } };
+    const who = (isCo) => { const n = isCo ? (c.legalName || c.name) : p.name, a = isCo ? c : p, gst = isCo ? t.gstin : p.gstin, pan = isCo ? t.pan : p.pan;
+      return [n, a.address, [a.city, a.state, a.pin].filter(Boolean).join(', '), a.phone && 'Phone: ' + a.phone, isCo && c.email, gst ? 'GSTIN: ' + gst : 'GSTIN: Unregistered', pan && 'PAN: ' + pan].filter(Boolean); };
+    // header
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(15); txt(c.legalName || c.name, M, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90); txt([c.city, c.state].filter(Boolean).join(', ') + (t.gstin ? '   |   GSTIN ' + t.gstin : ''), M, y + 5);
+    doc.setTextColor(0); doc.setFont('helvetica', 'bold'); doc.setFontSize(14); txt(sale ? 'TAX INVOICE' : 'PURCHASE BILL', W - M, y, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90); txt(inter ? 'Inter-state supply (IGST)' : 'Intra-state supply (CGST + SGST)', W - M, y + 5, { align: 'right' }); doc.setTextColor(0);
+    doc.setDrawColor(0); doc.setLineWidth(0.5); doc.line(M, y + 9, W - M, y + 9); y += 14;
+    const bw = (W - 2 * M - 4) / 2;
+    const mk = (x, head, lines) => { doc.setFontSize(9); doc.setFont('helvetica', 'normal'); const w = lines.flatMap((l) => doc.splitTextToSize(String(l), bw - 6)); return { x, head, w, h: 9 + w.length * 4.2 }; };
+    const pair = (a, b) => { const h = Math.max(a.h, b.h); need(h); [a, b].forEach((bx) => { doc.setDrawColor(180); doc.setLineWidth(0.2); doc.rect(bx.x, y, bw, h); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(110); txt(bx.head.toUpperCase(), bx.x + 3, y + 4.5); doc.setTextColor(0); doc.setFontSize(9); bx.w.forEach((l, i) => { doc.setFont('helvetica', i === 0 && bx.bold ? 'bold' : 'normal'); txt(l, bx.x + 3, y + 9 + i * 4.2); }); }); y += h + 3; };
+    const b1 = mk(M, sale ? 'Billed by' : 'Supplier', who(sale)), b2 = mk(M + bw + 4, sale ? 'Billed to' : 'Billed to (us)', who(!sale)); b1.bold = b2.bold = true; pair(b1, b2);
+    const m1 = mk(M, 'Details', [sale ? 'Invoice no: ' + v.no : 'Supplier invoice: ' + (v.refNo || '-'), sale ? '' : 'Our ref: ' + v.no, 'Date: ' + fdate(v.date), v.dueDate ? 'Due date: ' + fdate(v.dueDate) : ''].filter(Boolean));
+    const m2 = mk(M + bw + 4, 'Supply', ['Place of supply: ' + (sale ? (p.state || '') : (c.state || '')), sale && v.refNo ? 'Customer PO / ref: ' + v.refNo : '', v.narration || ''].filter(Boolean)); pair(m1, m2);
+    // items
+    const incl = v.taxMode === 'incl';
+    doc.autoTable({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { fontSize: 8.5, cellPadding: 1.6, lineColor: [180, 180, 180], lineWidth: 0.2, textColor: 0 }, headStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' },
+      head: [['#', 'Description', 'HSN/SAC', 'Qty', 'Rate' + (incl ? ' (incl.)' : ''), 'Disc', 'Taxable', 'GST', 'Amount']],
+      body: v.lines.map((l, i) => [i + 1, l.desc, l.hsn || '', num(l.qty) + ' ' + (l.unit || ''), fmt(l.rate), num(l.disc) ? num(l.disc) + '%' : '', fmt(l.amount), num(l.gst) + '%', fmt(l.amount + l.cgst + l.sgst + l.igst)]),
+      columnStyles: { 0: { cellWidth: 8 }, 2: { cellWidth: 20 }, 3: { halign: 'right', cellWidth: 20 }, 4: { halign: 'right', cellWidth: 23 }, 5: { halign: 'right', cellWidth: 12 }, 6: { halign: 'right', cellWidth: 23 }, 7: { halign: 'right', cellWidth: 12 }, 8: { halign: 'right', cellWidth: 24 } },
+      didParseCell: (d) => { if (d.section === 'head' && d.column.index >= 3) d.cell.styles.halign = 'right'; } });
+    y = doc.lastAutoTable.finalY + 4;
+    // GST summary (left) and totals (right)
+    const rates = new Map(); v.lines.forEach((l) => { const k = num(l.gst), e = rates.get(k) || { k, t: 0, c: 0, s: 0, i: 0 }; e.t += l.amount; e.c += l.cgst; e.s += l.sgst; e.i += l.igst; rates.set(k, e); });
+    need(40); const y0 = y;
+    doc.autoTable({ startY: y0, margin: { left: M }, tableWidth: 92, theme: 'grid', styles: { fontSize: 8, cellPadding: 1.4, lineColor: [180, 180, 180], lineWidth: 0.2, textColor: 0 }, headStyles: { fillColor: [240, 240, 240], textColor: 0 },
+      head: [inter ? ['GST rate', 'Taxable', 'IGST'] : ['GST rate', 'Taxable', 'CGST', 'SGST']], body: [...rates.values()].map((e) => inter ? [e.k + '%', fmt(e.t), fmt(e.i)] : [e.k + '%', fmt(e.t), fmt(e.c), fmt(e.s)]),
+      columnStyles: inter ? { 1: { halign: 'right' }, 2: { halign: 'right' } } : { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
+      didParseCell: (d) => { if (d.section === 'head' && d.column.index >= 1) d.cell.styles.halign = 'right'; } });
+    const yl = doc.lastAutoTable.finalY;
+    const tot = [['Taxable value', fmt(v.taxable)]].concat(inter ? [['IGST', fmt(v.igst)]] : [['CGST', fmt(v.cgst)], ['SGST', fmt(v.sgst)]]).concat(v.roundOff ? [['Round off', fmt(v.roundOff)]] : []).concat([['Total', R(v.total)]]);
+    doc.autoTable({ startY: y0, margin: { left: 112, right: M }, theme: 'plain', styles: { fontSize: 9, cellPadding: 1.3, textColor: 0 }, body: tot, columnStyles: { 1: { halign: 'right' } },
+      didParseCell: (d) => { if (d.row.index === tot.length - 1) { d.cell.styles.fontStyle = 'bold'; d.cell.styles.fontSize = 11; } } });
+    y = Math.max(yl, doc.lastAutoTable.finalY) + 5;
+    need(12); doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.splitTextToSize(E.numToWords(v.total).replace(/₹/g, 'Rs.'), W - 2 * M).forEach((l) => { txt(l, M, y); y += 4.4; }); y += 3;
+    if (sale) {
+      const bank = (c.bankName || c.bankAcc) ? ['Bank details'].concat([c.bankName, c.branch, c.bankAcc && 'A/c ' + c.bankAcc, c.ifsc && 'IFSC ' + c.ifsc, c.upi && 'UPI ' + c.upi].filter(Boolean)) : [];
+      const terms = c.terms ? ['Terms'].concat(doc.splitTextToSize(String(c.terms), 100)) : [];
+      const left = bank.concat(bank.length && terms.length ? [''] : [], terms); need(Math.max(32, left.length * 4.2 + 4)); doc.setFontSize(8.5);
+      left.forEach((l, i) => { doc.setFont('helvetica', l === 'Bank details' || l === 'Terms' ? 'bold' : 'normal'); txt(l, M, y + i * 4.2); });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); txt('For ' + (c.legalName || c.name), W - M, y, { align: 'right' }); txt(c.signatory || 'Authorised signatory', W - M, y + 24, { align: 'right' });
+    }
+    doc.setFontSize(7.5); doc.setTextColor(130); doc.setFont('helvetica', 'normal'); txt('Computer generated invoice from Sahara & Associates', W / 2, 291, { align: 'center' });
+    A.deliver((sale ? 'Invoice_' : 'Bill_') + v.no.replace(/[^A-Za-z0-9-]+/g, '-') + '.pdf', doc.output('blob'));
   };
 
   // ---------- backup helpers ----------
@@ -519,6 +581,8 @@
     A.forms.settle(isSale ? 'receipt' : 'payment', null, { counter: 'p:' + v.partyId, amount: bo ? bo.out : v.total, alloc: [{ ref: v.id, amt: bo ? bo.out : v.total }] });
   };
   A.H.dlInv = (el) => A.invoiceFile(el.dataset.id);
+  A.H.printInv = (el) => A.printInvoice(el.dataset.id);
+  A.H.pdfInv = (el) => A.invoicePDF(el.dataset.id);
   A.H.newParty = () => A.forms.party(null);
   A.H.editParty = (el) => A.forms.party(el.dataset.id);
   A.H.delParty = async (el) => {
