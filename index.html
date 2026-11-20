@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sahara &amp; Associates</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="side" id="side" aria-label="Main navigation">
+    <div class="brand"><div class="mono-logo" aria-hidden="true">S&amp;A</div><div><b id="coName">Sahara &amp; Associates</b><small>Books of account</small></div></div>
+    <nav class="nav" id="nav"></nav>
+  </aside>
+  <div class="main" id="main">
+    <header class="top">
+      <button type="button" class="btn sm" id="menuBtn" aria-label="Open menu">☰ Menu</button>
+      <span class="sp"></span>
+      <span class="stat idle" id="saveStat" role="status">Loading…</span>
+      <select class="fy" id="fySel" aria-label="Financial year"></select>
+      <div class="newwrap">
+        <button type="button" class="btn pri" id="newMenuBtn" aria-haspopup="true">＋ New voucher</button>
+        <div class="menu" id="newMenu" role="menu">
+          <button type="button" data-act="newV" data-t="sale">Sale invoice</button>
+          <button type="button" data-act="newV" data-t="purchase">Purchase bill</button>
+          <button type="button" data-act="newV" data-t="receipt">Receipt</button>
+          <button type="button" data-act="newV" data-t="payment">Payment</button>
+          <button type="button" data-act="newV" data-t="expense">Expense</button>
+          <button type="button" data-act="newV" data-t="contra">Contra</button>
+          <button type="button" data-act="scanBill" class="scanbtn">Scan a bill (AI)</button>
+        </div>
+      </div>
+    </header>
+    <div class="banner" id="banner" hidden></div>
+    <main id="view"></main>
+  </div>
+</div>
+<div id="modalRoot"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="engine.js"></script>
+<script src="ui.js"></script>
+<script src="store.js"></script>
+<script src="forms.js"></script>
+<script src="scan.js"></script>
+</body>
+</html>
