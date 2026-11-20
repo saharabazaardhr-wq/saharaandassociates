@@ -30,8 +30,9 @@
     });
   }
 
+  const headNames = () => A.S.accounts.filter((a) => a.group === 'Direct Expenses' || a.group === 'Indirect Expenses').filter((a) => a.id !== 'round').map((a) => a.name);
   function prompt() {
-    const heads = A.S.accounts.filter((a) => a.group === 'Direct Expenses' || a.group === 'Indirect Expenses').filter((a) => a.id !== 'round').map((a) => a.name);
+    const heads = headNames();
     return 'You read Indian business bills and invoices for an accounting app. Look at the attached bill photo and return ONLY JSON, no prose:\n'
       + '{"kind":"purchase"|"expense","vendorName":string,"vendorGstin":string|null,"billNo":string|null,"date":"YYYY-MM-DD"|null,'
       + '"lines":[{"desc":string,"hsn":string|null,"qty":number,"unit":string,"rate":number,"discPct":number,"gstPct":number}],'
@@ -90,27 +91,62 @@
     if (r.added) A.refresh();
   }
 
+  // On the live website (outside Claude) the photo goes to our own /api/scan function.
+  const PASS_KEY = 'sahara-scan-pass';
+  const toB64 = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = () => rej(new Error('Could not read the photo.')); r.readAsDataURL(blob); });
+  async function viaServer(blob, pass) {
+    if (!/^https?:$/.test(location.protocol)) { const e = new Error('Bill scanning works on the live website.'); throw e; }
+    const image = await toB64(blob);
+    let r; try { r = await fetch('/api/scan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image, heads: headNames(), passcode: pass || '' }) }); } catch (e) { throw new Error('No internet connection.'); }
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) return j.data;
+    const err = new Error(j.error || 'Could not read this bill.'); err.code = r.status === 401 ? 'passcode' : r.status === 429 ? 'rate_limited' : ''; throw err;
+  }
+  async function readBill(blob, pass) {
+    const s = await scan.available();
+    if (s) return s.json(prompt(), { images: [blob], modelTier: 'default', cache: false });
+    return viaServer(blob, pass);
+  }
+
   scan.start = async function () {
     if (A.S.demo) { A.toast('Start your own books first. Scanned bills are not saved in sample mode.'); return; }
-    const s = await scan.available();
-    if (!s) { A.toast('Bill scanning is not available in this view.'); return; }
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.style.display = 'none';
     document.body.appendChild(inp);
     inp.addEventListener('change', async () => {
       const file = inp.files && inp.files[0]; inp.remove(); if (!file) return;
       if (!/^image\//.test(file.type)) { A.toast('Please choose a photo (JPG or PNG). PDFs are not supported yet.'); return; }
-      const ov = A.openModal({ title: 'Reading your bill…', size: 'md', body: '<p class="muted" id="scanMsg">Claude is reading the bill. This takes a few seconds.</p>', foot: '<button type="button" class="btn" data-act="mClose">Cancel</button>' });
+      const ov = A.openModal({ title: 'Reading your bill…', size: 'md', body: '<p class="muted" id="scanMsg">Claude is reading the bill. This takes a few seconds.</p><div id="scanPass"></div>', foot: '<button type="button" class="btn" data-act="mClose">Cancel</button>' });
       let cancelled = false; new MutationObserver((_, o) => { if (!document.body.contains(ov)) { cancelled = true; o.disconnect(); } }).observe(document.body, { childList: true, subtree: true });
-      try {
-        const blob = await shrink(file);
-        const d = await s.json(prompt(), { images: [blob], modelTier: 'default', cache: false });
-        if (cancelled) return;
-        apply(d);
-      } catch (e) {
-        if (cancelled) return;
-        const m = e && e.code === 'rate_limited' ? 'Too many scans just now. Wait a minute and try again.' : e && e.code === 'not_granted' ? 'Bill scanning was not allowed.' : (e && e.message) || 'Could not read this bill.';
-        const msg = document.getElementById('scanMsg'); if (msg) { msg.className = 'err'; msg.textContent = m + ' You can still enter it by hand.'; } else A.toast(m);
-      }
+      let blob;
+      try { blob = await shrink(file); } catch (e) { const m = document.getElementById('scanMsg'); if (m) { m.className = 'err'; m.textContent = e.message; } return; }
+      const attempt = async (pass) => {
+        const msg = document.getElementById('scanMsg'), box = document.getElementById('scanPass');
+        if (box) box.innerHTML = '';
+        if (msg) { msg.className = 'muted'; msg.textContent = 'Claude is reading the bill. This takes a few seconds.'; }
+        try {
+          const d = await readBill(blob, pass);
+          if (cancelled) return;
+          if (pass) { try { localStorage.setItem(PASS_KEY, pass); } catch (e) { /* ignore */ } }
+          apply(d);
+        } catch (e) {
+          if (cancelled) return;
+          const m = document.getElementById('scanMsg'), b = document.getElementById('scanPass');
+          if (e && e.code === 'passcode' && b) {
+            if (!pass) { let saved = ''; try { saved = localStorage.getItem(PASS_KEY) || ''; } catch (x) { /* ignore */ } if (saved) return attempt(saved); }
+            try { localStorage.removeItem(PASS_KEY); } catch (x) { /* ignore */ }
+            m.className = pass ? 'err' : 'muted'; m.textContent = pass ? 'Wrong passcode. Try again.' : 'Enter the scan passcode to continue.';
+            b.innerHTML = '<div class="inl"><input type="password" id="scanPw" placeholder="Scan passcode" autocomplete="off"><button type="button" class="btn pri" id="scanPwGo">Scan</button></div>';
+            const go = () => { const v = document.getElementById('scanPw').value.trim(); if (v) attempt(v); };
+            document.getElementById('scanPwGo').addEventListener('click', go);
+            document.getElementById('scanPw').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); go(); } });
+            document.getElementById('scanPw').focus();
+            return;
+          }
+          const text = e && e.code === 'rate_limited' ? 'Too many scans just now. Wait a minute and try again.' : e && e.code === 'not_granted' ? 'Bill scanning was not allowed.' : (e && e.message) || 'Could not read this bill.';
+          if (m) { m.className = 'err'; m.textContent = text + ' You can still enter it by hand.'; } else A.toast(text);
+        }
+      };
+      attempt('');
     });
     inp.click();
   };
@@ -127,6 +163,4 @@
   };
 
   A.H.scanBill = () => scan.start();
-  // Hide the buttons where scanning cannot run.
-  scan.available().then((s) => { if (!s) document.querySelectorAll('[data-act="scanBill"]').forEach((b) => { b.hidden = true; }); A.scan.ok = !!s; });
 })();
