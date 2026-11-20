@@ -609,6 +609,31 @@
   A.H.partyT = (el) => { A.ui.partyT = el.dataset.t; A.render(); };
   A.H.dayType = (el) => { A.ui.dayType = el.dataset.t; A.render(); };
   A.H.taxTab = (el) => { A.ui.tax = el.dataset.t; A.render(); };
+  // ---------- Tally import handlers ----------
+  A.tallyPreview = () => {
+    const T = A.ui.tally, out = document.getElementById('tallyOut'); if (!T || !out) return;
+    const clone = JSON.parse(JSON.stringify(A.S)), rep = window.Tally.apply(clone, T.D, { opening: T.open });
+    T.clone = clone; T.rep = rep; out.innerHTML = A.tallyReport(T.D, rep, T.open);
+  };
+  A.H.tallyRead = async () => {
+    const inp = document.getElementById('tallyFiles'), files = inp ? [...inp.files] : [], out = document.getElementById('tallyOut');
+    if (!files.length) { A.toast('Choose the Tally XML files first.', 'bad'); return; }
+    out.innerHTML = '<p class="muted">Reading ' + files.length + ' file(s). Large files can take a little while…</p>';
+    await new Promise((r) => setTimeout(r, 40));
+    try {
+      const roots = []; for (const fl of files) roots.push(window.Tally.parseXML(window.Tally.decodeBuffer(await fl.arrayBuffer())));
+      A.ui.tally = { D: window.Tally.extract(roots), open: true }; A.tallyPreview();
+    } catch (e) { out.innerHTML = '<div class="err">These files could not be read. Export them from Tally Prime as XML (Data Interchange) and try again.</div>'; }
+  };
+  A.H.tallyToggleOpen = () => { if (!A.ui.tally) return; A.ui.tally.open = !A.ui.tally.open; A.tallyPreview(); };
+  A.H.tallyGo = async () => {
+    const T = A.ui.tally; if (!T || !T.clone) return;
+    if (A.S.demo) { A.toast('Start your own books first.', 'bad'); return; }
+    const r = T.rep; if (!(await A.confirm('Import <b>' + r.imported + ' vouchers</b>, ' + r.parties.added + ' new parties and ' + r.accounts.added + ' new ledgers into your books?', 'Import'))) return;
+    A.S = T.clone; A.ui.tally = null; A.ui.fy = E.fyStartYear(A.S.vouchers.length ? A.S.vouchers.map((v) => v.date).sort().slice(-1)[0] : today());
+    A.store.persistAll(); A.refresh(); location.hash = 'dashboard'; A.toast('Imported ' + r.imported + ' vouchers from Tally.');
+  };
+
   A.H.csv = (el) => { const k = el.dataset.k; A.deliver('Sahara_' + k + '_FY' + E.fyLabel(A.ui.fy) + '.csv', E.toCSV(A.csvFor(k))); };
   A.H.exportJSON = () => { const S = Object.assign({}, A.S); delete S.demo; A.deliver('sahara-books-backup-' + today() + '.json', JSON.stringify(S, null, 1)); };
   A.H.importJSON = importFile;

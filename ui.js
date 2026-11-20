@@ -482,6 +482,34 @@
   };
 
   // ---------- Backup & data ----------
+  // ---------- Tally import ----------
+  A.tallyReport = function (D, rep, open) {
+    const S = A.S, li = (a) => '<li>' + a + '</li>', n = (x) => '<b>' + x + '</b>';
+    const vt = rep.vouchers, labels = { sale: 'Sales', purchase: 'Purchases', receipt: 'Receipts', payment: 'Payments', expense: 'Expenses', contra: 'Contra' };
+    const vlist = Object.keys(vt).map((k) => n(vt[k]) + ' ' + labels[k].toLowerCase()).join(', ');
+    const skipped = Object.keys(rep.skipped).map((k) => li(n(rep.skipped[k]) + ' ' + esc(k))).join('');
+    const nothing = !D.ledgers.length && !D.items.length && !D.vouchers.length;
+    const hasWork = rep.imported || rep.parties.added || rep.accounts.added || rep.items.added;
+    return '<div class="note ' + (nothing ? 'bad' : '') + '">' + (nothing ? 'No Tally data found in these files. Export from Tally Prime in the XML (Data Interchange) format and try again.' : 'Found ' + n(D.ledgers.length) + ' ledgers, ' + n(D.items.length) + ' stock items and ' + n(D.vouchers.length) + ' vouchers.') + '</div>'
+      + (nothing ? '' : '<div class="cols2"><div><h4>Will be added</h4><ul class="plain">'
+        + li(n(rep.parties.added) + ' new parties (' + rep.parties.matched + ' already in your books)')
+        + li(n(rep.accounts.added) + ' new ledgers, ' + n(rep.items.added) + ' new stock items')
+        + li(rep.imported ? n(rep.imported) + ' vouchers: ' + vlist : 'No new vouchers')
+        + (rep.duplicates ? li(n(rep.duplicates) + ' vouchers were already imported earlier and are left as they are') : '')
+        + (rep.booksFrom ? li('Books will start from ' + n(A.u.fdate(rep.booksFrom)) + ' so the old vouchers show in reports') : '')
+        + '</ul></div><div><h4>Not imported</h4><ul class="plain">' + (skipped || li('Nothing skipped')) + '</ul>' + (rep.skipped['journal vouchers'] ? '<small class="muted">Journal vouchers, credit notes and debit notes are not supported yet.</small>' : '') + '</div></div>'
+        + (!D.ledgers.length ? '<div class="note">No ledger list found. Parties and bank or cash accounts are guessed from voucher names. For best results also export <b>Masters</b> (Ledgers, Groups, Stock Items) and pick that file together with the vouchers file.</div>' : '')
+        + (rep.warnings.length ? '<div class="note"><b>Please check</b><ul class="plain">' + rep.warnings.map((w) => li(esc(w))).join('') + '</ul>' + (rep.warningsMore ? '<small>and ' + rep.warningsMore + ' more.</small>' : '') + '</div>' : '')
+        + '<div class="row"><button type="button" class="btn" data-act="tallyToggleOpen">Opening balances from Tally: ' + (open ? 'ON' : 'OFF') + '</button><small class="muted">Turn OFF if your Tally file starts mid-year or your opening balances are already entered here.</small></div>'
+        + '<div class="row">' + (S.demo ? '<div class="err">You are looking at sample data. Use Start my own books first, then import.</div><button type="button" class="btn" data-act="startFresh">Start my own books</button>' : '<button type="button" class="btn pri" data-act="tallyGo"' + (hasWork ? '' : ' disabled') + '>Import into my books</button>') + '</div>');
+  };
+  A.pages.tally = function () {
+    return pageHead('Import from Tally', 'Bring parties, ledgers, stock items and vouchers from Tally Prime into these books.', '')
+      + panel('Step 1. Export from Tally Prime', '<ol class="plain"><li>In Tally Prime press <b>Alt+E</b> (Export) and choose <b>Masters</b>. Pick Ledgers, Groups and Stock Items. Format: <b>XML (Data Interchange)</b>.</li><li>Press <b>Alt+E</b> again and choose <b>Vouchers</b> for the period you want. Format: <b>XML (Data Interchange)</b>.</li><li>You get two XML files. Keep them on this device.</li></ol>')
+      + panel('Step 2. Choose the files', '<label class="fld"><span>Tally XML files (select both together)</span><input type="file" id="tallyFiles" accept=".xml,.txt,text/xml,application/xml" multiple></label><div class="row"><button type="button" class="btn pri" data-act="tallyRead">Read files</button></div><div id="tallyOut" class="tallyout"></div>')
+      + '<div class="note">Importing again later is safe. Vouchers that are already here are skipped. Sales, receipts and payments are matched bill by bill. Tally GST ledgers are mapped to the GST accounts in these books.</div>';
+  };
+
   A.pages.data = function () {
     const S = A.S, m = A.store.mode;
     const where = m === 'cloud' ? 'Your books are stored in your Claude account and open on any device you sign in to.' : m === 'local' ? 'Your books are stored in this browser only. Download a backup regularly.' : 'Your books are not being stored right now.';
@@ -535,7 +563,7 @@
     ['Parties', [['parties', 'Party Profiles'], ['ledger', 'Party Ledger'], ['debtors', 'Sundry Debtors'], ['creditors', 'Sundry Creditors']]],
     ['Statements', [['pnl', 'Profit & Loss'], ['balance-sheet', 'Balance Sheet'], ['trial-balance', 'Trial Balance']]],
     ['Compliance', [['taxation', 'Taxation (GST, TDS)']]],
-    ['Setup', [['company', 'Company Profile'], ['accounts', 'Ledgers'], ['data', 'Backup & Data']]],
+    ['Setup', [['company', 'Company Profile'], ['accounts', 'Ledgers'], ['tally', 'Import from Tally'], ['data', 'Backup & Data']]],
   ];
   const routeName = () => (location.hash || '#dashboard').slice(1) || 'dashboard';
   A.buildNav = function () {
