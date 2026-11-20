@@ -6,6 +6,23 @@ const RATES = [0, 5, 12, 18, 28];
 const UNITS = ['Nos', 'Pcs', 'Kg', 'MT', 'Ltr', 'Mtr', 'Box', 'Set', 'Pair', 'Hrs', 'Job'];
 const hits = new Map(); // best-effort rate limit per instance
 
+// Pull the first complete JSON object out of the model's reply (handles code fences, extra text, trailing commas).
+function extractJson(t) {
+  t = String(t || '').replace(/```(?:json)?/gi, '');
+  const s = t.indexOf('{'); if (s < 0) return null;
+  let d = 0, inStr = false, esc = false;
+  for (let i = s; i < t.length; i++) {
+    const ch = t[i];
+    if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; continue; }
+    if (ch === '"') inStr = true; else if (ch === '{') d++; else if (ch === '}') { d--; if (d === 0) return t.slice(s, i + 1); }
+  }
+  return null;
+}
+function parseLoose(txt) {
+  try { return JSON.parse(txt); } catch (e) { /* try again after cleanup */ }
+  try { return JSON.parse(txt.replace(/,\s*([}\]])/g, '$1')); } catch (e) { return null; }
+}
+
 function prompt(heads) {
   return 'You read Indian business bills and invoices for an accounting app. Look at the attached bill photo and return ONLY JSON, no prose:\n'
     + '{"kind":"purchase"|"expense","vendorName":string,"vendorGstin":string|null,"billNo":string|null,"date":"YYYY-MM-DD"|null,'
@@ -53,7 +70,7 @@ module.exports = async (req, res) => {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 2000, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } }, { type: 'text', text: prompt(heads) }] }] }),
+      body: JSON.stringify({ model: MODEL, max_tokens: 6000, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } }, { type: 'text', text: prompt(heads) }] }] }),
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
@@ -61,9 +78,13 @@ module.exports = async (req, res) => {
       return send(res, r.status === 429 ? 429 : 502, { error: msg });
     }
     const text = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
-    const m = text.match(/\{[\s\S]*\}/);
-    if (!m) return send(res, 502, { error: 'Could not understand the AI reply.' });
-    let data; try { data = JSON.parse(m[0]); } catch (e) { return send(res, 502, { error: 'Could not understand the AI reply.' }); }
+    const raw = extractJson(text);
+    const data = raw ? parseLoose(raw) : null;
+    if (!data) {
+      console.error('scan: unreadable reply', j.stop_reason, text.length, JSON.stringify(text.slice(0, 200)));
+      if (j.stop_reason === 'max_tokens') return send(res, 502, { error: 'This bill has too many items to read in one go. Scan it in parts or enter it by hand.' });
+      return send(res, 502, { error: 'Could not understand the AI reply. Please try the photo again, a bit clearer or straighter.' });
+    }
     return send(res, 200, { data });
   } catch (e) {
     return send(res, 502, { error: 'Could not reach the AI service.' });
