@@ -234,3 +234,12 @@ table.lines input.ln-amt { width: 112px; font-family: var(--mono); font-size: 13
 small.stk { display: block; font-size: 11px; color: var(--muted); min-height: 0; margin-top: 2px; } small.stk.bad { color: var(--bad); font-weight: 600; }
 .note.imp .inl { margin: 6px 0; } .note.imp input { flex: 1; } .row .row { margin-top: 0; }
 ul.plain, ol.plain { margin: 6px 0 6px 18px; padding: 0; } ul.plain li, ol.plain li { margin: 3px 0; } .tallyout { margin-top: 14px; } .tallyout h4 { margin: 0 0 4px; } .note.bad { background: #fdecea; color: #8a1c13; }
+
+/* login */
+.loginov { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: var(--bg, #f6f5f1); padding: 16px; }
+.logincard { background: var(--panel, #fff); border: 1px solid var(--line, #e4e1d8); border-radius: 12px; padding: 26px 24px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.08); }
+.logincard h2 { margin: 0; font-size: 20px; } .logincard p { margin: 0 0 4px; }
+.logincard label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.logincard input { padding: 9px 10px; border: 1px solid var(--line, #e4e1d8); border-radius: 6px; font-size: 15px; }
+.logincard .btn { justify-content: center; padding: 10px; } .logincard .note { margin: 0; }
+.linkbtn { background: none; border: 0; color: var(--muted); font-size: 12.5px; text-decoration: underline; cursor: pointer; padding: 4px; }

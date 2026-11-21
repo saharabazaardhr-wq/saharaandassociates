@@ -577,7 +577,7 @@
     const b = document.getElementById('banner');
     b.hidden = !S.demo;
     b.innerHTML = S.demo ? '<span><b>Sample data.</b> You are exploring a demo company. Changes here are not saved.</span><button type="button" class="btn pri sm" data-act="startFresh">Start my own books</button>' : '';
-    if (A.store.loadError) { b.hidden = false; b.innerHTML = '<span><b>Could not reach your saved books.</b> Working from this browser’s storage for now.</span>'; }
+    if (A.store.loadError) { b.hidden = false; b.innerHTML = A.store.fellBack ? '<span><b>Server se connect nahi hua.</b> Abhi changes sirf is browser me rahenge; internet aane par page reload karein to upload ka option milega.</span>' : '<span><b>Could not reach your saved books.</b> Working from this browser’s storage for now.</span>'; }
     A.setStatus();
   };
   A.render = function () {

@@ -715,7 +715,7 @@
       if (!Array.isArray(S.items)) S.items = [];
       A.S = S;
       if (!S.items.length && S.vouchers.some((v) => v.type === 'sale' || v.type === 'purchase')) { if (E.syncAll(S)) A.saveMeta(); }
-      if (S.migrate) { delete S.migrate; A.store.persistAll(); }
+      if (S.migrate) { delete S.migrate; A.store.persistAll(); if (A.store.reconcile) { A.store.purge(A.store.reconcile.p, A.store.reconcile.v); A.store.reconcile = null; } }
     } else { A.S = E.sampleData(today()); A.S.demo = true; }
     A.ui.fy = E.fyStartYear(today());
     if (A.fyList().indexOf(A.ui.fy) < 0) A.ui.fy = A.fyList()[A.fyList().length - 1];
