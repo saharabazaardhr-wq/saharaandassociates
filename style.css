@@ -201,13 +201,6 @@ input.al { width: 120px; text-align: right; }
 details.entries { margin-top: 18px; } details.entries summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; color: var(--muted); }
 
 /* invoice preview (in-page) */
-.inv { font-size: 13px; color: #111; background: #fff; border: 1px solid #ccc; padding: 22px; border-radius: 4px; }
-.inv h2 { margin: 0 0 2px; font-size: 19px; letter-spacing: .04em; } .inv .ihead { position: static; display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #111; padding: 0 0 10px; margin-bottom: 10px; background: none; backdrop-filter: none; } .inv .ihead .t { text-align: right; }
-.inv .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; } .inv .box { border: 1px solid #bbb; padding: 8px 10px; } .inv .box h4 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #555; }
-.inv table { width: 100%; border-collapse: collapse; margin: 8px 0; } .inv th, .inv td { border: 1px solid #bbb; padding: 4px 6px; text-align: left; vertical-align: top; } .inv th { background: #f0f0f0; font-size: 11px; color: #333; letter-spacing: 0; text-transform: none; font-weight: 600; }
-.inv .n { text-align: right; } .inv .tot { margin-left: auto; width: 300px; } .inv .tot td { border: 0; padding: 2px 6px; } .inv .tot .g td { border-top: 2px solid #111; font-weight: 700; font-size: 15px; }
-.inv .words { color: #333; margin: 6px 0; text-align: left; max-width: none; } .inv .foot { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; margin-top: 10px; } .inv .sign { text-align: right; padding-top: 40px; } .inv small { color: #555; }
-.inv .tbl tr:hover td, .inv tr:hover td { background: none; }
 
 @media (max-width: 1000px) { .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .g3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cols2, .cols2.prof { grid-template-columns: minmax(0, 1fr); } .w3 { grid-column: span 2; } }
 @media (max-width: 860px) {
@@ -221,7 +214,6 @@ details.entries { margin-top: 18px; } details.entries summary { cursor: pointer;
 @media (max-width: 560px) {
   .g2, .g3, .g4 { grid-template-columns: minmax(0, 1fr); } .w2, .w3 { grid-column: auto; }
   .ov { padding: 0; } .dlg { border-radius: 0; max-height: 100%; min-height: 100%; } .dlg footer { border-radius: 0; }
-  .inv .meta, .inv .foot { grid-template-columns: 1fr; }
   .phead h1 { font-size: 21px; } .kv { grid-template-columns: 96px 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

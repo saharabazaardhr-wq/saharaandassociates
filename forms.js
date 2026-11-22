@@ -434,32 +434,70 @@
   };
 
   // ---------- voucher view / invoice ----------
-  const INV_CSS = 'body{font:13px/1.45 Arial,Helvetica,sans-serif;color:#111;margin:0;padding:24px;background:#fff}.inv{max-width:820px;margin:0 auto}.inv h2{margin:0 0 2px;font-size:20px;letter-spacing:.04em}.inv .ihead{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:10px}.inv .ihead .t{text-align:right}.inv .meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}.inv .box{border:1px solid #bbb;padding:8px 10px}.inv .box h4{margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#555}.inv table{width:100%;border-collapse:collapse;margin:8px 0}.inv th,.inv td{border:1px solid #bbb;padding:4px 6px;text-align:left;vertical-align:top}.inv th{background:#f0f0f0;font-size:11px}.inv .n{text-align:right;font-variant-numeric:tabular-nums}.inv .tot{margin-left:auto;width:300px}.inv .tot td{border:0;padding:2px 6px}.inv .tot .g td{border-top:2px solid #111;font-weight:700;font-size:15px}.inv .words{margin:6px 0;font-style:italic}.inv .foot{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-top:10px}.inv .sign{text-align:right;padding-top:46px}.inv small{color:#555}';
+  // ---------- invoice design (one source of CSS for the preview, print and saved HTML) ----------
+  const INVC = [
+    '.inv{font:12.5px/1.45 Arial,Helvetica,sans-serif;color:#1a1a1a;background:#fff;border:1px solid #cfd6d9;border-radius:4px;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}',
+    '.inv *{box-sizing:border-box}.inv .bar{height:8px;background:#0f4c5c}',
+    '.inv .ihead{display:flex;justify-content:space-between;gap:16px;padding:14px 18px 10px}',
+    '.inv .co h2{margin:0 0 3px;font-size:21px;color:#0f4c5c;letter-spacing:.02em}.inv .co p{margin:0;color:#444;font-size:11.5px}.inv .co p b{color:#1a1a1a}',
+    '.inv .ttl{background:#0f4c5c;color:#fff;padding:9px 16px;text-align:center;min-width:190px;border-radius:3px;align-self:flex-start}',
+    '.inv .ttl b{display:block;font-size:18px;letter-spacing:.1em}.inv .ttl small{color:#cfe3e8;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase}',
+    '.inv .strip{display:grid;grid-template-columns:repeat(4,1fr);margin:0 18px;border:1px solid #c9d3d6;background:#f1f6f7}',
+    '.inv .strip>div{padding:6px 10px;border-right:1px solid #c9d3d6}.inv .strip>div:last-child{border-right:0}',
+    '.inv .strip small{display:block;color:#5b6b71;font-size:9.5px;text-transform:uppercase;letter-spacing:.07em}.inv .strip b{font-size:13px}',
+    '.inv .parties{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 18px 0}',
+    '.inv .box{border:1px solid #c9d3d6;border-radius:3px;overflow:hidden}.inv .box h4{margin:0;padding:4px 10px;background:#e3edef;color:#0f4c5c;font-size:10px;text-transform:uppercase;letter-spacing:.08em}.inv .box>div{padding:7px 10px}',
+    '.inv .tw{margin:12px 18px 0;overflow-x:auto}.inv .items{width:100%;min-width:560px;border-collapse:collapse}',
+    '.inv .items th{background:#0f4c5c;color:#fff;font-size:10.5px;padding:6px;text-align:left;border:1px solid #0f4c5c}.inv .items td{padding:5px 6px;border:1px solid #c9d3d6;vertical-align:top}',
+    '.inv .items tbody tr:nth-child(even) td{background:#f8fafb}.inv .items tr:hover td{background:inherit}',
+    '.inv .n,.inv .items th.n{text-align:right;font-variant-numeric:tabular-nums}.inv td small{display:block;color:#6a797f;font-size:9.5px}',
+    '.inv .sum{display:grid;grid-template-columns:1.25fr 1fr;gap:14px;margin:12px 18px 0;align-items:start}',
+    '.inv .wd{border:1px dashed #9fb3b9;padding:7px 10px;border-radius:3px;background:#fbfdfd}.inv .wd small{display:block;color:#5b6b71;font-size:9.5px;text-transform:uppercase;letter-spacing:.07em}',
+    '.inv .hsn{width:100%;border-collapse:collapse;margin-top:10px;font-size:11px}.inv .hsn th{background:#e3edef;color:#0f4c5c;font-size:10px;padding:3px 6px;text-align:left;border:1px solid #c9d3d6}.inv .hsn td{padding:3px 6px;border:1px solid #c9d3d6}.inv .hsn th.n{text-align:right}',
+    '.inv .tot{width:100%;border-collapse:collapse}.inv .tot td{padding:4px 8px;border-bottom:1px solid #e1e8ea}.inv .tot .g td{background:#0f4c5c;color:#fff;font-size:15px;font-weight:700;border:0}',
+    '.inv .foot{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin:14px 18px 0}.inv .foot h4{margin:0 0 3px;font-size:10px;color:#0f4c5c;text-transform:uppercase;letter-spacing:.08em}.inv .foot p{margin:0 0 8px;font-size:11.5px}',
+    '.inv .sign{text-align:right;border:1px solid #c9d3d6;border-radius:3px;padding:8px 10px;min-height:96px;display:flex;flex-direction:column;justify-content:space-between}.inv .sign .ln{border-top:1px solid #555;padding-top:3px;font-size:11.5px}',
+    '.inv .decl{margin:12px 18px 0;font-size:10.5px;color:#555}.inv .cg{margin:12px 0 0;padding:6px;text-align:center;font-size:10px;color:#6a797f;border-top:1px solid #e1e8ea}.inv small{color:#5b6b71}',
+    '@media(max-width:560px){.inv .strip{grid-template-columns:1fr 1fr}.inv .parties,.inv .sum,.inv .foot{grid-template-columns:1fr}.inv .ihead{flex-direction:column}}',
+  ].join('');
+  const INV_CSS = 'body{font:13px/1.45 Arial,Helvetica,sans-serif;margin:0;padding:24px;background:#fff}.inv{max-width:820px;margin:0 auto}' + INVC;
+  (function () { const s = document.createElement('style'); s.id = 'invCss'; s.textContent = INVC; document.head.appendChild(s); })();
+
   function partyBlock(p, c, t, isCompany) {
-    const name = isCompany ? (c.legalName || c.name) : p.name;
-    const lines = isCompany ? [c.address, [c.city, c.state, c.pin].filter(Boolean).join(', '), c.phone && 'Phone: ' + c.phone, c.email] : [p.address, [p.city, p.state, p.pin].filter(Boolean).join(', '), p.phone && 'Phone: ' + p.phone];
+    const name = isCompany ? (c.legalName || c.name) : p.name, a = isCompany ? c : p;
     const gst = isCompany ? t.gstin : p.gstin, pan = isCompany ? t.pan : p.pan;
+    const lines = [a.address, [a.city, a.state, a.pin].filter(Boolean).join(', '), a.stateCode && 'State code: ' + a.stateCode, a.phone && 'Phone: ' + a.phone, isCompany && c.email];
     return '<b>' + esc(name) + '</b><br>' + lines.filter(Boolean).map(esc).join('<br>') + (gst ? '<br>GSTIN: <b>' + esc(gst) + '</b>' : '<br><small>GSTIN: Unregistered</small>') + (pan ? '<br>PAN: ' + esc(pan) : '');
   }
   function invoiceHTML(v) {
     const S = A.S, c = S.company, t = S.tax, p = S.parties.find((x) => x.id === v.partyId) || { name: '(deleted party)' };
-    const sale = v.type === 'sale';
-    const title = sale ? 'TAX INVOICE' : 'PURCHASE BILL';
-    const inter = !!v.interstate;
-    const rates = new Map();
-    v.lines.forEach((l) => { const k = num(l.gst), e = rates.get(k) || { rate: k, t: 0, c: 0, s: 0, i: 0 }; e.t += l.amount; e.c += l.cgst; e.s += l.sgst; e.i += l.igst; rates.set(k, e); });
-    const items = v.lines.map((l, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(l.desc) + '</td><td>' + esc(l.hsn) + '</td><td class="n">' + num(l.qty) + ' ' + esc(l.unit || '') + '</td><td class="n">' + fmt(l.rate) + '</td><td class="n">' + (num(l.disc) ? num(l.disc) + '%' : '') + '</td><td class="n">' + fmt(l.amount) + '</td><td class="n">' + num(l.gst) + '%</td><td class="n">' + fmt(l.amount + l.cgst + l.sgst + l.igst) + '</td></tr>').join('');
-    const taxRows = [...rates.values()].map((e) => '<tr><td>' + e.rate + '%</td><td class="n">' + fmt(e.t) + '</td>' + (inter ? '<td class="n">' + fmt(e.i) + '</td>' : '<td class="n">' + fmt(e.c) + '</td><td class="n">' + fmt(e.s) + '</td>') + '</tr>').join('');
-    const bank = sale && (c.bankName || c.bankAcc) ? '<b>Bank details</b><br>' + [c.bankName, c.branch, c.bankAcc && 'A/c ' + c.bankAcc, c.ifsc && 'IFSC ' + c.ifsc, c.upi && 'UPI ' + c.upi].filter(Boolean).map(esc).join('<br>') + '<br><br>' : '';
-    const terms = sale && c.terms ? '<b>Terms</b><br><small>' + esc(c.terms).replace(/\n/g, '<br>') + '</small>' : '';
-    return '<div class="inv"><div class="ihead"><div><h2>' + esc(c.legalName || c.name) + '</h2><small>' + esc([c.city, c.state].filter(Boolean).join(', ')) + (t.gstin ? ' · GSTIN ' + esc(t.gstin) : '') + '</small></div><div class="t"><h2>' + title + '</h2><small>' + (inter ? 'Inter-state supply (IGST)' : 'Intra-state supply (CGST + SGST)') + '</small></div></div>'
-      + '<div class="meta"><div class="box"><h4>' + (sale ? 'Billed by' : 'Supplier') + '</h4>' + partyBlock(p, c, t, sale) + '</div><div class="box"><h4>' + (sale ? 'Billed to' : 'Billed to (us)') + '</h4>' + partyBlock(p, c, t, !sale) + '</div></div>'
-      + '<div class="meta"><div class="box">' + (sale ? 'Invoice no: <b>' + esc(v.no) + '</b>' : 'Supplier invoice: <b>' + esc(v.refNo || '—') + '</b><br>Our ref: ' + esc(v.no)) + '<br>Date: <b>' + fdate(v.date) + '</b>' + (v.dueDate ? '<br>Due date: ' + fdate(v.dueDate) : '') + '</div><div class="box">Place of supply: <b>' + esc(sale ? (p.state || '') : (c.state || '')) + '</b>' + (sale && v.refNo ? '<br>Customer PO / ref: ' + esc(v.refNo) : '') + (v.narration ? '<br>' + esc(v.narration) : '') + '</div></div>'
-      + '<table><thead><tr><th>#</th><th>Description</th><th>HSN/SAC</th><th class="n">Qty</th><th class="n">Rate' + (v.taxMode === 'incl' ? ' (incl. GST)' : '') + '</th><th class="n">Disc</th><th class="n">Taxable</th><th class="n">GST</th><th class="n">Amount</th></tr></thead><tbody>' + items + '</tbody></table>'
-      + '<table class="tot"><tbody><tr><td>Taxable value</td><td class="n">' + fmt(v.taxable) + '</td></tr>' + (inter ? '<tr><td>IGST</td><td class="n">' + fmt(v.igst) + '</td></tr>' : '<tr><td>CGST</td><td class="n">' + fmt(v.cgst) + '</td></tr><tr><td>SGST</td><td class="n">' + fmt(v.sgst) + '</td></tr>') + (v.roundOff ? '<tr><td>Round off</td><td class="n">' + fmt(v.roundOff) + '</td></tr>' : '') + '<tr class="g"><td>Total</td><td class="n">₹ ' + fmt(v.total) + '</td></tr></tbody></table>'
-      + '<div class="words">' + esc(E.numToWords(v.total)) + '</div>'
-      + '<table><thead><tr><th>GST rate</th><th class="n">Taxable</th>' + (inter ? '<th class="n">IGST</th>' : '<th class="n">CGST</th><th class="n">SGST</th>') + '</tr></thead><tbody>' + taxRows + '</tbody></table>'
-      + (sale ? '<div class="foot"><div>' + bank + terms + '</div><div class="sign">For <b>' + esc(c.legalName || c.name) + '</b><br><br><br>' + esc(c.signatory || 'Authorised signatory') + '</div></div>' : '') + '</div>';
+    const sale = v.type === 'sale', inter = !!v.interstate, incl = v.taxMode === 'incl';
+    const hasDisc = v.lines.some((l) => num(l.disc));
+    const pos = sale ? p : c, posTxt = [pos.state, pos.stateCode && '(' + pos.stateCode + ')'].filter(Boolean).join(' ') || '—';
+    const half = (g) => num(g) / 2;
+    const rows = v.lines.map((l, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(l.desc) + '</td><td>' + esc(l.hsn) + '</td><td class="n">' + num(l.qty) + ' ' + esc(l.unit || '') + '</td><td class="n">' + fmt(l.rate) + '</td>'
+      + (hasDisc ? '<td class="n">' + (num(l.disc) ? num(l.disc) + '%' : '') + '</td>' : '') + '<td class="n">' + fmt(l.amount) + '</td>'
+      + (inter ? '<td class="n">' + fmt(l.igst) + '<small>' + num(l.gst) + '%</small></td>' : '<td class="n">' + fmt(l.cgst) + '<small>' + half(l.gst) + '%</small></td><td class="n">' + fmt(l.sgst) + '<small>' + half(l.gst) + '%</small></td>')
+      + '<td class="n"><b>' + fmt(r2(l.amount + l.cgst + l.sgst + l.igst)) + '</b></td></tr>').join('');
+    const hs = new Map();
+    v.lines.forEach((l) => { const k = (l.hsn || '—') + '|' + num(l.gst), e = hs.get(k) || { hsn: l.hsn || '—', g: num(l.gst), t: 0, c: 0, s: 0, i: 0 }; e.t += l.amount; e.c += l.cgst; e.s += l.sgst; e.i += l.igst; hs.set(k, e); });
+    const hrows = [...hs.values()].map((e) => '<tr><td>' + esc(e.hsn) + '</td><td class="n">' + fmt(e.t) + '</td><td class="n">' + e.g + '%</td>' + (inter ? '<td class="n">' + fmt(e.i) + '</td>' : '<td class="n">' + fmt(e.c) + '</td><td class="n">' + fmt(e.s) + '</td>') + '<td class="n">' + fmt(r2(e.c + e.s + e.i)) + '</td></tr>').join('');
+    const addr = [c.address, [c.city, c.state, c.pin].filter(Boolean).join(', ')].filter(Boolean).join(', ');
+    const contact = [c.phone && 'Phone: ' + c.phone, c.email, c.website].filter(Boolean).join('  ·  ');
+    const ids = [t.gstin && 'GSTIN: <b>' + esc(t.gstin) + '</b>', t.pan && 'PAN: <b>' + esc(t.pan) + '</b>'].filter(Boolean).join('  ·  ');
+    const head = '<div class="bar"></div><div class="ihead"><div class="co"><h2>' + esc(c.legalName || c.name) + '</h2>' + (addr ? '<p>' + esc(addr) + '</p>' : '') + (contact ? '<p>' + esc(contact) + '</p>' : '') + (ids ? '<p>' + ids + '</p>' : '') + '</div>'
+      + '<div class="ttl"><b>' + (sale ? 'TAX INVOICE' : 'PURCHASE BILL') + '</b><small>' + (sale ? 'Original for recipient' : 'Supplier bill record') + '</small></div></div>';
+    const cell = (k, val) => '<div><small>' + k + '</small><b>' + val + '</b></div>';
+    const strip = '<div class="strip">' + (sale ? cell('Invoice no', esc(v.no)) : cell('Supplier invoice', esc(v.refNo || '—'))) + cell('Date', fdate(v.date)) + cell('Due date', v.dueDate ? fdate(v.dueDate) : '—') + (sale ? cell('Place of supply', esc(posTxt)) : cell('Our ref', esc(v.no))) + '</div>';
+    const supply = 'Supply type: <b>' + (inter ? 'Inter-state (IGST)' : 'Intra-state (CGST + SGST)') + '</b><br>' + (sale ? '' : 'Place of supply: <b>' + esc(posTxt) + '</b><br>') + 'Reverse charge: <b>No</b>' + (sale && v.refNo ? '<br>Customer PO / ref: <b>' + esc(v.refNo) + '</b>' : '') + (v.narration ? '<br>' + esc(v.narration) : '');
+    const parties = '<div class="parties"><div class="box"><h4>' + (sale ? 'Bill to' : 'Supplier') + '</h4><div>' + partyBlock(p, c, t, false) + '</div></div><div class="box"><h4>' + (sale ? 'Supply details' : 'Billed to (us)') + '</h4><div>' + (sale ? supply : partyBlock(p, c, t, true) + '<br>' + supply.replace(/<br>Reverse charge[\s\S]*$/, '')) + '</div></div></div>';
+    const items = '<div class="tw"><table class="items"><thead><tr><th>#</th><th>Description</th><th>HSN/SAC</th><th class="n">Qty</th><th class="n">Rate' + (incl ? ' (incl. GST)' : '') + '</th>' + (hasDisc ? '<th class="n">Disc</th>' : '') + '<th class="n">Taxable</th>' + (inter ? '<th class="n">IGST</th>' : '<th class="n">CGST</th><th class="n">SGST</th>') + '<th class="n">Total</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    const tot = '<table class="tot"><tbody><tr><td>Taxable value</td><td class="n">' + fmt(v.taxable) + '</td></tr>' + (inter ? '<tr><td>IGST</td><td class="n">' + fmt(v.igst) + '</td></tr>' : '<tr><td>CGST</td><td class="n">' + fmt(v.cgst) + '</td></tr><tr><td>SGST</td><td class="n">' + fmt(v.sgst) + '</td></tr>') + (v.roundOff ? '<tr><td>Round off</td><td class="n">' + fmt(v.roundOff) + '</td></tr>' : '') + '<tr class="g"><td>Grand total</td><td class="n">₹ ' + fmt(v.total) + '</td></tr></tbody></table>';
+    const sum = '<div class="sum"><div><div class="wd"><small>Amount in words</small><b>' + esc(E.numToWords(v.total)) + '</b></div><table class="hsn"><thead><tr><th>HSN/SAC</th><th class="n">Taxable</th><th class="n">Rate</th>' + (inter ? '<th class="n">IGST</th>' : '<th class="n">CGST</th><th class="n">SGST</th>') + '<th class="n">Total tax</th></tr></thead><tbody>' + hrows + '</tbody></table></div><div>' + tot + '</div></div>';
+    const bank = sale && (c.bankName || c.bankAcc || c.upi) ? '<h4>Bank details</h4><p>' + [c.bankName, c.branch, c.bankAcc && 'A/c no: ' + c.bankAcc, c.ifsc && 'IFSC: ' + c.ifsc, c.upi && 'UPI: ' + c.upi].filter(Boolean).map(esc).join('<br>') + '</p>' : '';
+    const terms = sale && c.terms ? '<h4>Terms &amp; conditions</h4><p>' + esc(c.terms).replace(/\n/g, '<br>') + '</p>' : '';
+    const foot = sale ? '<div class="foot"><div>' + bank + terms + '</div><div class="sign"><span>For <b>' + esc(c.legalName || c.name) + '</b></span><span class="ln">' + esc(c.signatory || 'Authorised signatory') + '</span></div></div><div class="decl">We declare that this invoice shows the actual price of the goods / services described and that all particulars are true and correct.</div>' : '';
+    return '<div class="inv">' + head + strip + parties + items + sum + foot + '<div class="cg">This is a computer generated invoice</div></div>';
   }
   A.forms.view = function (id) {
     const v = A.S.vouchers.find((x) => x.id === id); if (!v) return;
@@ -493,54 +531,72 @@
   A.invoicePDF = async function (id) {
     const v = A.S.vouchers.find((x) => x.id === id); if (!v) return;
     try { await A.loadScript('lib/jspdf.umd.min.js'); await A.loadScript('lib/jspdf.plugin.autotable.min.js'); } catch (e) { A.toast('The PDF tool could not load. Use Print and choose Save as PDF.', 'bad'); return; }
-    const S = A.S, c = S.company, t = S.tax, p = S.parties.find((x) => x.id === v.partyId) || { name: '(deleted party)' }, sale = v.type === 'sale', inter = !!v.interstate;
-    const R = (n) => 'Rs. ' + fmt(n);
-    const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' }), W = 210, M = 12; let y = 14;
+    const S = A.S, c = S.company, t = S.tax, p = S.parties.find((x) => x.id === v.partyId) || { name: '(deleted party)' }, sale = v.type === 'sale', inter = !!v.interstate, incl = v.taxMode === 'incl';
+    const ACC = [15, 76, 92], SOFT = [227, 237, 239], LINE = [201, 211, 214], hasDisc = v.lines.some((l) => num(l.disc));
+    const R = (n) => 'Rs. ' + fmt(n), half = (g) => num(g) / 2;
+    const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' }), W = 210, M = 12; let y = 0;
     const txt = (s, x, yy, o) => doc.text(String(s), x, yy, o);
-    const need = (h) => { if (y + h > 285) { doc.addPage(); y = 14; } };
-    const who = (isCo) => { const n = isCo ? (c.legalName || c.name) : p.name, a = isCo ? c : p, gst = isCo ? t.gstin : p.gstin, pan = isCo ? t.pan : p.pan;
-      return [n, a.address, [a.city, a.state, a.pin].filter(Boolean).join(', '), a.phone && 'Phone: ' + a.phone, isCo && c.email, gst ? 'GSTIN: ' + gst : 'GSTIN: Unregistered', pan && 'PAN: ' + pan].filter(Boolean); };
-    // header
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(15); txt(c.legalName || c.name, M, y);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90); txt([c.city, c.state].filter(Boolean).join(', ') + (t.gstin ? '   |   GSTIN ' + t.gstin : ''), M, y + 5);
-    doc.setTextColor(0); doc.setFont('helvetica', 'bold'); doc.setFontSize(14); txt(sale ? 'TAX INVOICE' : 'PURCHASE BILL', W - M, y, { align: 'right' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90); txt(inter ? 'Inter-state supply (IGST)' : 'Intra-state supply (CGST + SGST)', W - M, y + 5, { align: 'right' }); doc.setTextColor(0);
-    doc.setDrawColor(0); doc.setLineWidth(0.5); doc.line(M, y + 9, W - M, y + 9); y += 14;
+    const need = (h) => { if (y + h > 280) { doc.addPage(); y = 14; } };
+    const pos = sale ? p : c, posTxt = [pos.state, pos.stateCode && '(' + pos.stateCode + ')'].filter(Boolean).join(' ') || '-';
+    const who = (isCo) => { const a = isCo ? c : p, gst = isCo ? t.gstin : p.gstin, pan = isCo ? t.pan : p.pan;
+      return [{ b: 1, s: isCo ? (c.legalName || c.name) : p.name }, a.address, [a.city, a.state, a.pin].filter(Boolean).join(', '), a.stateCode && 'State code: ' + a.stateCode, a.phone && 'Phone: ' + a.phone, isCo && c.email, gst ? 'GSTIN: ' + gst : 'GSTIN: Unregistered', pan && 'PAN: ' + pan].filter(Boolean).map((l) => (typeof l === 'string' ? { s: l } : l)); };
+    // top bar + header
+    doc.setFillColor(...ACC); doc.rect(0, 0, W, 3.2, 'F'); y = 12;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(...ACC); txt(c.legalName || c.name, M, y + 2);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(70);
+    const info = [[c.address, [c.city, c.state, c.pin].filter(Boolean).join(', ')].filter(Boolean).join(', '), [c.phone && 'Phone: ' + c.phone, c.email, c.website].filter(Boolean).join('   |   '), [t.gstin && 'GSTIN: ' + t.gstin, t.pan && 'PAN: ' + t.pan].filter(Boolean).join('   |   ')].filter(Boolean);
+    let iy = y + 7; info.forEach((l) => doc.splitTextToSize(l, 120).forEach((x) => { txt(x, M, iy); iy += 4; }));
+    doc.setFillColor(...ACC); doc.roundedRect(W - M - 54, y - 3, 54, 14, 1.2, 1.2, 'F');
+    doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13); txt(sale ? 'TAX INVOICE' : 'PURCHASE BILL', W - M - 27, y + 3.6, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); txt((sale ? 'ORIGINAL FOR RECIPIENT' : 'SUPPLIER BILL RECORD'), W - M - 27, y + 8, { align: 'center' }); doc.setTextColor(0);
+    y = Math.max(iy, y + 14) + 2;
+    // info strip
+    const cells = sale ? [['INVOICE NO', v.no], ['DATE', fdate(v.date)], ['DUE DATE', v.dueDate ? fdate(v.dueDate) : '-'], ['PLACE OF SUPPLY', posTxt]] : [['SUPPLIER INVOICE', v.refNo || '-'], ['DATE', fdate(v.date)], ['DUE DATE', v.dueDate ? fdate(v.dueDate) : '-'], ['OUR REF', v.no]];
+    const cw = (W - 2 * M) / 4; doc.setFillColor(241, 246, 247); doc.setDrawColor(...LINE); doc.setLineWidth(0.2); doc.rect(M, y, W - 2 * M, 11, 'FD');
+    cells.forEach((k, i) => { const x = M + i * cw; if (i) doc.line(x, y, x, y + 11); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(100); txt(k[0], x + 2.5, y + 4); doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0); txt(doc.splitTextToSize(String(k[1]), cw - 5)[0], x + 2.5, y + 8.6); });
+    y += 15;
+    // parties
     const bw = (W - 2 * M - 4) / 2;
-    const mk = (x, head, lines) => { doc.setFontSize(9); doc.setFont('helvetica', 'normal'); const w = lines.flatMap((l) => doc.splitTextToSize(String(l), bw - 6)); return { x, head, w, h: 9 + w.length * 4.2 }; };
-    const pair = (a, b) => { const h = Math.max(a.h, b.h); need(h); [a, b].forEach((bx) => { doc.setDrawColor(180); doc.setLineWidth(0.2); doc.rect(bx.x, y, bw, h); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(110); txt(bx.head.toUpperCase(), bx.x + 3, y + 4.5); doc.setTextColor(0); doc.setFontSize(9); bx.w.forEach((l, i) => { doc.setFont('helvetica', i === 0 && bx.bold ? 'bold' : 'normal'); txt(l, bx.x + 3, y + 9 + i * 4.2); }); }); y += h + 3; };
-    const b1 = mk(M, sale ? 'Billed by' : 'Supplier', who(sale)), b2 = mk(M + bw + 4, sale ? 'Billed to' : 'Billed to (us)', who(!sale)); b1.bold = b2.bold = true; pair(b1, b2);
-    const m1 = mk(M, 'Details', [sale ? 'Invoice no: ' + v.no : 'Supplier invoice: ' + (v.refNo || '-'), sale ? '' : 'Our ref: ' + v.no, 'Date: ' + fdate(v.date), v.dueDate ? 'Due date: ' + fdate(v.dueDate) : ''].filter(Boolean));
-    const m2 = mk(M + bw + 4, 'Supply', ['Place of supply: ' + (sale ? (p.state || '') : (c.state || '')), sale && v.refNo ? 'Customer PO / ref: ' + v.refNo : '', v.narration || ''].filter(Boolean)); pair(m1, m2);
+    const supply = ['Supply type: ' + (inter ? 'Inter-state (IGST)' : 'Intra-state (CGST + SGST)')].concat(sale ? [] : ['Place of supply: ' + posTxt]).concat(sale ? ['Reverse charge: No'] : []).concat(sale && v.refNo ? ['Customer PO / ref: ' + v.refNo] : []).concat(v.narration ? [v.narration] : []).map((s) => ({ s }));
+    const mk = (x, head, lines) => { doc.setFontSize(9); const w = []; lines.forEach((l) => doc.splitTextToSize(String(l.s), bw - 6).forEach((s) => w.push({ s, b: l.b }))); return { x, head, w, h: 8 + w.length * 4.2 + 2 }; };
+    const L = mk(M, sale ? 'Bill to' : 'Supplier', who(false)), Rb = mk(M + bw + 4, sale ? 'Supply details' : 'Billed to (us)', sale ? supply : who(true).concat(supply.slice(0, 2)));
+    const bh = Math.max(L.h, Rb.h); need(bh);
+    [L, Rb].forEach((bx) => { doc.setDrawColor(...LINE); doc.rect(bx.x, y, bw, bh); doc.setFillColor(...SOFT); doc.rect(bx.x, y, bw, 5.6, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...ACC); txt(bx.head.toUpperCase(), bx.x + 3, y + 3.9); doc.setTextColor(0); doc.setFontSize(9);
+      bx.w.forEach((l, i) => { doc.setFont('helvetica', l.b ? 'bold' : 'normal'); txt(l.s, bx.x + 3, y + 10.4 + i * 4.2); }); });
+    y += bh + 5;
     // items
-    const incl = v.taxMode === 'incl';
-    doc.autoTable({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { fontSize: 8.5, cellPadding: 1.6, lineColor: [180, 180, 180], lineWidth: 0.2, textColor: 0 }, headStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' },
-      head: [['#', 'Description', 'HSN/SAC', 'Qty', 'Rate' + (incl ? ' (incl.)' : ''), 'Disc', 'Taxable', 'GST', 'Amount']],
-      body: v.lines.map((l, i) => [i + 1, l.desc, l.hsn || '', num(l.qty) + ' ' + (l.unit || ''), fmt(l.rate), num(l.disc) ? num(l.disc) + '%' : '', fmt(l.amount), num(l.gst) + '%', fmt(l.amount + l.cgst + l.sgst + l.igst)]),
-      columnStyles: { 0: { cellWidth: 8 }, 2: { cellWidth: 20 }, 3: { halign: 'right', cellWidth: 20 }, 4: { halign: 'right', cellWidth: 23 }, 5: { halign: 'right', cellWidth: 12 }, 6: { halign: 'right', cellWidth: 23 }, 7: { halign: 'right', cellWidth: 12 }, 8: { halign: 'right', cellWidth: 24 } },
-      didParseCell: (d) => { if (d.section === 'head' && d.column.index >= 3) d.cell.styles.halign = 'right'; } });
-    y = doc.lastAutoTable.finalY + 4;
-    // GST summary (left) and totals (right)
-    const rates = new Map(); v.lines.forEach((l) => { const k = num(l.gst), e = rates.get(k) || { k, t: 0, c: 0, s: 0, i: 0 }; e.t += l.amount; e.c += l.cgst; e.s += l.sgst; e.i += l.igst; rates.set(k, e); });
-    need(40); const y0 = y;
-    doc.autoTable({ startY: y0, margin: { left: M }, tableWidth: 92, theme: 'grid', styles: { fontSize: 8, cellPadding: 1.4, lineColor: [180, 180, 180], lineWidth: 0.2, textColor: 0 }, headStyles: { fillColor: [240, 240, 240], textColor: 0 },
-      head: [inter ? ['GST rate', 'Taxable', 'IGST'] : ['GST rate', 'Taxable', 'CGST', 'SGST']], body: [...rates.values()].map((e) => inter ? [e.k + '%', fmt(e.t), fmt(e.i)] : [e.k + '%', fmt(e.t), fmt(e.c), fmt(e.s)]),
-      columnStyles: inter ? { 1: { halign: 'right' }, 2: { halign: 'right' } } : { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
+    const colHead = ['#', 'Description', 'HSN/SAC', 'Qty', 'Rate' + (incl ? ' (incl.)' : '')].concat(hasDisc ? ['Disc'] : []).concat(['Taxable'], inter ? ['IGST'] : ['CGST', 'SGST'], ['Total']);
+    const body = v.lines.map((l, i) => [i + 1, l.desc, l.hsn || '', num(l.qty) + ' ' + (l.unit || ''), fmt(l.rate)].concat(hasDisc ? [num(l.disc) ? num(l.disc) + '%' : ''] : []).concat([fmt(l.amount)], inter ? [fmt(l.igst) + '\n' + num(l.gst) + '%'] : [fmt(l.cgst) + '\n' + half(l.gst) + '%', fmt(l.sgst) + '\n' + half(l.gst) + '%'], [fmt(r2(l.amount + l.cgst + l.sgst + l.igst))]));
+    const cs = { 0: { cellWidth: 7 }, 2: { cellWidth: 17 } }; for (let i = 3; i < colHead.length; i++) { cs[i] = { halign: 'right', cellWidth: colHead[i] === 'Disc' ? 11 : colHead[i] === 'Total' ? 22 : colHead[i] === 'Qty' ? 17 : 20 }; }
+    doc.autoTable({ startY: y, margin: { left: M, right: M, top: 14 }, rowPageBreak: 'avoid', theme: 'grid', styles: { fontSize: 8.3, cellPadding: 1.5, lineColor: LINE, lineWidth: 0.2, textColor: 20 }, headStyles: { fillColor: ACC, textColor: 255, fontStyle: 'bold', lineColor: ACC }, alternateRowStyles: { fillColor: [248, 250, 251] },
+      head: [colHead], body, columnStyles: cs, didParseCell: (d) => { if (d.section === 'head' && d.column.index >= 3) d.cell.styles.halign = 'right'; if (d.section === 'body' && d.column.index === colHead.length - 1) d.cell.styles.fontStyle = 'bold'; } });
+    y = doc.lastAutoTable.finalY + 5;
+    // words + HSN summary (left), totals (right)
+    const hs = new Map(); v.lines.forEach((l) => { const k = (l.hsn || '-') + '|' + num(l.gst), e = hs.get(k) || { h: l.hsn || '-', g: num(l.gst), t: 0, c: 0, s: 0, i: 0 }; e.t += l.amount; e.c += l.cgst; e.s += l.sgst; e.i += l.igst; hs.set(k, e); });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.8); const words = doc.splitTextToSize(E.numToWords(v.total).replace(/₹/g, 'Rs.'), 94); const wh = 7 + words.length * 4.2;
+    need(wh + 14 + hs.size * 6 + 12); const y0 = y;
+    doc.setDrawColor(150, 170, 176); doc.setLineDashPattern([1, 1], 0); doc.setFillColor(251, 253, 253); doc.roundedRect(M, y0, 100, wh, 1, 1, 'FD'); doc.setLineDashPattern([], 0);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(100); txt('AMOUNT IN WORDS', M + 2.5, y0 + 3.6); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.8); doc.setTextColor(0); words.forEach((l, i) => txt(l, M + 2.5, y0 + 8 + i * 4.2));
+    doc.autoTable({ startY: y0 + wh + 3, margin: { left: M }, tableWidth: 100, theme: 'grid', styles: { fontSize: 7.8, cellPadding: 1.2, lineColor: LINE, lineWidth: 0.2, textColor: 20 }, headStyles: { fillColor: SOFT, textColor: ACC, fontStyle: 'bold' },
+      head: [['HSN/SAC', 'Taxable', 'Rate'].concat(inter ? ['IGST'] : ['CGST', 'SGST'], ['Total tax'])], body: [...hs.values()].map((e) => [e.h, fmt(e.t), e.g + '%'].concat(inter ? [fmt(e.i)] : [fmt(e.c), fmt(e.s)], [fmt(r2(e.c + e.s + e.i))])),
+      columnStyles: inter ? { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } } : { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
       didParseCell: (d) => { if (d.section === 'head' && d.column.index >= 1) d.cell.styles.halign = 'right'; } });
     const yl = doc.lastAutoTable.finalY;
-    const tot = [['Taxable value', fmt(v.taxable)]].concat(inter ? [['IGST', fmt(v.igst)]] : [['CGST', fmt(v.cgst)], ['SGST', fmt(v.sgst)]]).concat(v.roundOff ? [['Round off', fmt(v.roundOff)]] : []).concat([['Total', R(v.total)]]);
-    doc.autoTable({ startY: y0, margin: { left: 112, right: M }, theme: 'plain', styles: { fontSize: 9, cellPadding: 1.3, textColor: 0 }, body: tot, columnStyles: { 1: { halign: 'right' } },
-      didParseCell: (d) => { if (d.row.index === tot.length - 1) { d.cell.styles.fontStyle = 'bold'; d.cell.styles.fontSize = 11; } } });
-    y = Math.max(yl, doc.lastAutoTable.finalY) + 5;
-    need(12); doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.splitTextToSize(E.numToWords(v.total).replace(/₹/g, 'Rs.'), W - 2 * M).forEach((l) => { txt(l, M, y); y += 4.4; }); y += 3;
+    const tot = [['Taxable value', fmt(v.taxable)]].concat(inter ? [['IGST', fmt(v.igst)]] : [['CGST', fmt(v.cgst)], ['SGST', fmt(v.sgst)]]).concat(v.roundOff ? [['Round off', fmt(v.roundOff)]] : []).concat([['Grand total', R(v.total)]]);
+    doc.autoTable({ startY: y0, margin: { left: 118, right: M }, theme: 'plain', styles: { fontSize: 9, cellPadding: { top: 1.6, bottom: 1.6, left: 2, right: 2 }, textColor: 0, lineColor: [225, 232, 234], lineWidth: { bottom: 0.2 } }, body: tot, columnStyles: { 1: { halign: 'right' } },
+      didParseCell: (d) => { if (d.row.index === tot.length - 1) { d.cell.styles.fillColor = ACC; d.cell.styles.textColor = 255; d.cell.styles.fontStyle = 'bold'; d.cell.styles.fontSize = 11; } } });
+    y = Math.max(yl, doc.lastAutoTable.finalY) + 6;
     if (sale) {
-      const bank = (c.bankName || c.bankAcc) ? ['Bank details'].concat([c.bankName, c.branch, c.bankAcc && 'A/c ' + c.bankAcc, c.ifsc && 'IFSC ' + c.ifsc, c.upi && 'UPI ' + c.upi].filter(Boolean)) : [];
-      const terms = c.terms ? ['Terms'].concat(doc.splitTextToSize(String(c.terms), 100)) : [];
-      const left = bank.concat(bank.length && terms.length ? [''] : [], terms); need(Math.max(32, left.length * 4.2 + 4)); doc.setFontSize(8.5);
-      left.forEach((l, i) => { doc.setFont('helvetica', l === 'Bank details' || l === 'Terms' ? 'bold' : 'normal'); txt(l, M, y + i * 4.2); });
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); txt('For ' + (c.legalName || c.name), W - M, y, { align: 'right' }); txt(c.signatory || 'Authorised signatory', W - M, y + 24, { align: 'right' });
+      const bank = (c.bankName || c.bankAcc || c.upi) ? [{ h: 'BANK DETAILS' }].concat([c.bankName, c.branch, c.bankAcc && 'A/c no: ' + c.bankAcc, c.ifsc && 'IFSC: ' + c.ifsc, c.upi && 'UPI: ' + c.upi].filter(Boolean).map((s) => ({ s }))) : [];
+      doc.setFontSize(8.5); const terms = c.terms ? [{ h: 'TERMS & CONDITIONS' }].concat(doc.splitTextToSize(String(c.terms), 108).map((s) => ({ s }))) : [];
+      const left = bank.concat(bank.length && terms.length ? [{ s: '' }] : [], terms); need(Math.max(34, left.length * 4.2 + 6));
+      left.forEach((l, i) => { if (l.h) { doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...ACC); txt(l.h, M, y + i * 4.2); doc.setTextColor(0); } else { doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); txt(l.s, M, y + i * 4.2); } });
+      doc.setDrawColor(...LINE); doc.rect(W - M - 66, y - 3, 66, 32); doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(0);
+      txt('For ' + (c.legalName || c.name), W - M - 3, y + 2, { align: 'right' }); doc.setDrawColor(90); doc.line(W - M - 60, y + 22, W - M - 3, y + 22); doc.setFontSize(8.5); txt(c.signatory || 'Authorised signatory', W - M - 3, y + 26, { align: 'right' });
+      y += Math.max(left.length * 4.2, 32) + 3; need(8); doc.setFontSize(7.5); doc.setTextColor(90); doc.splitTextToSize('We declare that this invoice shows the actual price of the goods / services described and that all particulars are true and correct.', W - 2 * M).forEach((l) => { txt(l, M, y); y += 3.6; }); doc.setTextColor(0);
     }
-    doc.setFontSize(7.5); doc.setTextColor(130); doc.setFont('helvetica', 'normal'); txt('Computer generated invoice from Sahara & Associates', W / 2, 291, { align: 'center' });
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(130); doc.setFont('helvetica', 'normal'); txt('This is a computer generated invoice  |  Page ' + i + ' of ' + pages, W / 2, 291, { align: 'center' }); }
     A.deliver((sale ? 'Invoice_' : 'Bill_') + v.no.replace(/[^A-Za-z0-9-]+/g, '-') + '.pdf', doc.output('blob'));
   };
 
