@@ -523,10 +523,18 @@
 
   A.printInvoice = function (id) {
     const v = A.S.vouchers.find((x) => x.id === id); if (!v) return;
-    const fr = document.createElement('iframe'); fr.setAttribute('aria-hidden', 'true'); fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+    const fr = document.createElement('iframe'); fr.setAttribute('aria-hidden', 'true'); fr.style.cssText = 'position:fixed;left:-10000px;top:0;width:718px;height:1100px;border:0';
     document.body.appendChild(fr);
-    const d = fr.contentWindow.document; d.open(); d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc((v.type === 'sale' ? 'Invoice ' : 'Bill ') + v.no) + '</title><style>' + INV_CSS + '@page{size:A4;margin:10mm}@media print{body{padding:0}}</style></head><body>' + invoiceHTML(v) + '</body></html>'); d.close();
-    setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { A.toast('Printing is not available here. Use Download PDF.', 'bad'); } setTimeout(() => fr.remove(), 60000); }, 250);
+    const d = fr.contentWindow.document; d.open(); d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc((v.type === 'sale' ? 'Invoice ' : 'Bill ') + v.no) + '</title><style>' + INV_CSS + '@page{size:A4;margin:10mm}body{padding:0}@media print{body{padding:0}}</style></head><body>' + invoiceHTML(v) + '</body></html>'); d.close();
+    setTimeout(() => {
+      try {
+        // shrink the invoice until it fits one A4 page (277 mm usable height)
+        const inv = d.querySelector('.inv'), avail = 1020; let z = 1; inv.style.zoom = 1;
+        while (inv.getBoundingClientRect().height > avail && z > 0.45) { z = Math.round((z - 0.03) * 100) / 100; inv.style.zoom = z; }
+        fr.contentWindow.focus(); fr.contentWindow.print();
+      } catch (e) { A.toast('Printing is not available here. Use Download PDF.', 'bad'); }
+      setTimeout(() => fr.remove(), 60000);
+    }, 300);
   };
   A.invoicePDF = async function (id) {
     const v = A.S.vouchers.find((x) => x.id === id); if (!v) return;
@@ -534,69 +542,83 @@
     const S = A.S, c = S.company, t = S.tax, p = S.parties.find((x) => x.id === v.partyId) || { name: '(deleted party)' }, sale = v.type === 'sale', inter = !!v.interstate, incl = v.taxMode === 'incl';
     const ACC = [15, 76, 92], SOFT = [227, 237, 239], LINE = [201, 211, 214], hasDisc = v.lines.some((l) => num(l.disc));
     const R = (n) => 'Rs. ' + fmt(n), half = (g) => num(g) / 2;
-    const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' }), W = 210, M = 12; let y = 0;
-    const txt = (s, x, yy, o) => doc.text(String(s), x, yy, o);
-    const need = (h) => { if (y + h > 280) { doc.addPage(); y = 14; } };
     const pos = sale ? p : c, posTxt = [pos.state, pos.stateCode && '(' + pos.stateCode + ')'].filter(Boolean).join(' ') || '-';
+    const W = 210, M = 12;
     const who = (isCo) => { const a = isCo ? c : p, gst = isCo ? t.gstin : p.gstin, pan = isCo ? t.pan : p.pan;
       return [{ b: 1, s: isCo ? (c.legalName || c.name) : p.name }, a.address, [a.city, a.state, a.pin].filter(Boolean).join(', '), a.stateCode && 'State code: ' + a.stateCode, a.phone && 'Phone: ' + a.phone, isCo && c.email, gst ? 'GSTIN: ' + gst : 'GSTIN: Unregistered', pan && 'PAN: ' + pan].filter(Boolean).map((l) => (typeof l === 'string' ? { s: l } : l)); };
-    // top bar + header
-    doc.setFillColor(...ACC); doc.rect(0, 0, W, 3.2, 'F'); y = 12;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(...ACC); txt(c.legalName || c.name, M, y + 2);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(70);
-    const info = [[c.address, [c.city, c.state, c.pin].filter(Boolean).join(', ')].filter(Boolean).join(', '), [c.phone && 'Phone: ' + c.phone, c.email, c.website].filter(Boolean).join('   |   '), [t.gstin && 'GSTIN: ' + t.gstin, t.pan && 'PAN: ' + t.pan].filter(Boolean).join('   |   ')].filter(Boolean);
-    let iy = y + 7; info.forEach((l) => doc.splitTextToSize(l, 120).forEach((x) => { txt(x, M, iy); iy += 4; }));
-    doc.setFillColor(...ACC); doc.roundedRect(W - M - 54, y - 3, 54, 14, 1.2, 1.2, 'F');
-    doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13); txt(sale ? 'TAX INVOICE' : 'PURCHASE BILL', W - M - 27, y + 3.6, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); txt((sale ? 'ORIGINAL FOR RECIPIENT' : 'SUPPLIER BILL RECORD'), W - M - 27, y + 8, { align: 'center' }); doc.setTextColor(0);
-    y = Math.max(iy, y + 14) + 2;
-    // info strip
-    const cells = sale ? [['INVOICE NO', v.no], ['DATE', fdate(v.date)], ['DUE DATE', v.dueDate ? fdate(v.dueDate) : '-'], ['PLACE OF SUPPLY', posTxt]] : [['SUPPLIER INVOICE', v.refNo || '-'], ['DATE', fdate(v.date)], ['DUE DATE', v.dueDate ? fdate(v.dueDate) : '-'], ['OUR REF', v.no]];
-    const cw = (W - 2 * M) / 4; doc.setFillColor(241, 246, 247); doc.setDrawColor(...LINE); doc.setLineWidth(0.2); doc.rect(M, y, W - 2 * M, 11, 'FD');
-    cells.forEach((k, i) => { const x = M + i * cw; if (i) doc.line(x, y, x, y + 11); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(100); txt(k[0], x + 2.5, y + 4); doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(0); txt(doc.splitTextToSize(String(k[1]), cw - 5)[0], x + 2.5, y + 8.6); });
-    y += 15;
-    // parties
-    const bw = (W - 2 * M - 4) / 2;
-    const supply = ['Supply type: ' + (inter ? 'Inter-state (IGST)' : 'Intra-state (CGST + SGST)')].concat(sale ? [] : ['Place of supply: ' + posTxt]).concat(sale ? ['Reverse charge: No'] : []).concat(sale && v.refNo ? ['Customer PO / ref: ' + v.refNo] : []).concat(v.narration ? [v.narration] : []).map((s) => ({ s }));
-    const mk = (x, head, lines) => { doc.setFontSize(9); const w = []; lines.forEach((l) => doc.splitTextToSize(String(l.s), bw - 6).forEach((s) => w.push({ s, b: l.b }))); return { x, head, w, h: 8 + w.length * 4.2 + 2 }; };
-    const L = mk(M, sale ? 'Bill to' : 'Supplier', who(false)), Rb = mk(M + bw + 4, sale ? 'Supply details' : 'Billed to (us)', sale ? supply : who(true).concat(supply.slice(0, 2)));
-    const bh = Math.max(L.h, Rb.h); need(bh);
-    [L, Rb].forEach((bx) => { doc.setDrawColor(...LINE); doc.rect(bx.x, y, bw, bh); doc.setFillColor(...SOFT); doc.rect(bx.x, y, bw, 5.6, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...ACC); txt(bx.head.toUpperCase(), bx.x + 3, y + 3.9); doc.setTextColor(0); doc.setFontSize(9);
-      bx.w.forEach((l, i) => { doc.setFont('helvetica', l.b ? 'bold' : 'normal'); txt(l.s, bx.x + 3, y + 10.4 + i * 4.2); }); });
-    y += bh + 5;
-    // items
-    const colHead = ['#', 'Description', 'HSN/SAC', 'Qty', 'Rate' + (incl ? ' (incl.)' : '')].concat(hasDisc ? ['Disc'] : []).concat(['Taxable'], inter ? ['IGST'] : ['CGST', 'SGST'], ['Total']);
-    const body = v.lines.map((l, i) => [i + 1, l.desc, l.hsn || '', num(l.qty) + ' ' + (l.unit || ''), fmt(l.rate)].concat(hasDisc ? [num(l.disc) ? num(l.disc) + '%' : ''] : []).concat([fmt(l.amount)], inter ? [fmt(l.igst) + '\n' + num(l.gst) + '%'] : [fmt(l.cgst) + '\n' + half(l.gst) + '%', fmt(l.sgst) + '\n' + half(l.gst) + '%'], [fmt(r2(l.amount + l.cgst + l.sgst + l.igst))]));
-    const cs = { 0: { cellWidth: 7 }, 2: { cellWidth: 17 } }; for (let i = 3; i < colHead.length; i++) { cs[i] = { halign: 'right', cellWidth: colHead[i] === 'Disc' ? 11 : colHead[i] === 'Total' ? 22 : colHead[i] === 'Qty' ? 17 : 20 }; }
-    doc.autoTable({ startY: y, margin: { left: M, right: M, top: 14 }, rowPageBreak: 'avoid', theme: 'grid', styles: { fontSize: 8.3, cellPadding: 1.5, lineColor: LINE, lineWidth: 0.2, textColor: 20 }, headStyles: { fillColor: ACC, textColor: 255, fontStyle: 'bold', lineColor: ACC }, alternateRowStyles: { fillColor: [248, 250, 251] },
-      head: [colHead], body, columnStyles: cs, didParseCell: (d) => { if (d.section === 'head' && d.column.index >= 3) d.cell.styles.halign = 'right'; if (d.section === 'body' && d.column.index === colHead.length - 1) d.cell.styles.fontStyle = 'bold'; } });
-    y = doc.lastAutoTable.finalY + 5;
-    // words + HSN summary (left), totals (right)
-    const hs = new Map(); v.lines.forEach((l) => { const k = (l.hsn || '-') + '|' + num(l.gst), e = hs.get(k) || { h: l.hsn || '-', g: num(l.gst), t: 0, c: 0, s: 0, i: 0 }; e.t += l.amount; e.c += l.cgst; e.s += l.sgst; e.i += l.igst; hs.set(k, e); });
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.8); const words = doc.splitTextToSize(E.numToWords(v.total).replace(/₹/g, 'Rs.'), 94); const wh = 7 + words.length * 4.2;
-    need(wh + 14 + hs.size * 6 + 12); const y0 = y;
-    doc.setDrawColor(150, 170, 176); doc.setLineDashPattern([1, 1], 0); doc.setFillColor(251, 253, 253); doc.roundedRect(M, y0, 100, wh, 1, 1, 'FD'); doc.setLineDashPattern([], 0);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(100); txt('AMOUNT IN WORDS', M + 2.5, y0 + 3.6); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.8); doc.setTextColor(0); words.forEach((l, i) => txt(l, M + 2.5, y0 + 8 + i * 4.2));
-    doc.autoTable({ startY: y0 + wh + 3, margin: { left: M }, tableWidth: 100, theme: 'grid', styles: { fontSize: 7.8, cellPadding: 1.2, lineColor: LINE, lineWidth: 0.2, textColor: 20 }, headStyles: { fillColor: SOFT, textColor: ACC, fontStyle: 'bold' },
-      head: [['HSN/SAC', 'Taxable', 'Rate'].concat(inter ? ['IGST'] : ['CGST', 'SGST'], ['Total tax'])], body: [...hs.values()].map((e) => [e.h, fmt(e.t), e.g + '%'].concat(inter ? [fmt(e.i)] : [fmt(e.c), fmt(e.s)], [fmt(r2(e.c + e.s + e.i))])),
-      columnStyles: inter ? { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } } : { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
-      didParseCell: (d) => { if (d.section === 'head' && d.column.index >= 1) d.cell.styles.halign = 'right'; } });
-    const yl = doc.lastAutoTable.finalY;
-    const tot = [['Taxable value', fmt(v.taxable)]].concat(inter ? [['IGST', fmt(v.igst)]] : [['CGST', fmt(v.cgst)], ['SGST', fmt(v.sgst)]]).concat(v.roundOff ? [['Round off', fmt(v.roundOff)]] : []).concat([['Grand total', R(v.total)]]);
-    doc.autoTable({ startY: y0, margin: { left: 118, right: M }, theme: 'plain', styles: { fontSize: 9, cellPadding: { top: 1.6, bottom: 1.6, left: 2, right: 2 }, textColor: 0, lineColor: [225, 232, 234], lineWidth: { bottom: 0.2 } }, body: tot, columnStyles: { 1: { halign: 'right' } },
-      didParseCell: (d) => { if (d.row.index === tot.length - 1) { d.cell.styles.fillColor = ACC; d.cell.styles.textColor = 255; d.cell.styles.fontStyle = 'bold'; d.cell.styles.fontSize = 11; } } });
-    y = Math.max(yl, doc.lastAutoTable.finalY) + 6;
-    if (sale) {
-      const bank = (c.bankName || c.bankAcc || c.upi) ? [{ h: 'BANK DETAILS' }].concat([c.bankName, c.branch, c.bankAcc && 'A/c no: ' + c.bankAcc, c.ifsc && 'IFSC: ' + c.ifsc, c.upi && 'UPI: ' + c.upi].filter(Boolean).map((s) => ({ s }))) : [];
-      doc.setFontSize(8.5); const terms = c.terms ? [{ h: 'TERMS & CONDITIONS' }].concat(doc.splitTextToSize(String(c.terms), 108).map((s) => ({ s }))) : [];
-      const left = bank.concat(bank.length && terms.length ? [{ s: '' }] : [], terms); need(Math.max(34, left.length * 4.2 + 6));
-      left.forEach((l, i) => { if (l.h) { doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...ACC); txt(l.h, M, y + i * 4.2); doc.setTextColor(0); } else { doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); txt(l.s, M, y + i * 4.2); } });
-      doc.setDrawColor(...LINE); doc.rect(W - M - 66, y - 3, 66, 32); doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(0);
-      txt('For ' + (c.legalName || c.name), W - M - 3, y + 2, { align: 'right' }); doc.setDrawColor(90); doc.line(W - M - 60, y + 22, W - M - 3, y + 22); doc.setFontSize(8.5); txt(c.signatory || 'Authorised signatory', W - M - 3, y + 26, { align: 'right' });
-      y += Math.max(left.length * 4.2, 32) + 3; need(8); doc.setFontSize(7.5); doc.setTextColor(90); doc.splitTextToSize('We declare that this invoice shows the actual price of the goods / services described and that all particulars are true and correct.', W - 2 * M).forEach((l) => { txt(l, M, y); y += 3.6; }); doc.setTextColor(0);
-    }
-    const pages = doc.getNumberOfPages();
-    for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(130); doc.setFont('helvetica', 'normal'); txt('This is a computer generated invoice  |  Page ' + i + ' of ' + pages, W / 2, 291, { align: 'center' }); }
+
+    /** Draw the whole invoice at scale k (1 = normal, smaller = tighter so more items fit on one page). */
+    const build = (k) => {
+      const f = (n) => n * k;
+      const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' }); let y = 0;
+      const txt = (s, x, yy, o) => doc.text(String(s), x, yy, o);
+      const need = (h) => { if (y + h > 282) { doc.addPage(); y = 14; } };
+      // top bar + header
+      doc.setFillColor(...ACC); doc.rect(0, 0, W, 3.2, 'F'); y = f(12);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(f(16)); doc.setTextColor(...ACC); txt(c.legalName || c.name, M, y + f(2));
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(f(8.5)); doc.setTextColor(70);
+      const info = [[c.address, [c.city, c.state, c.pin].filter(Boolean).join(', ')].filter(Boolean).join(', '), [c.phone && 'Phone: ' + c.phone, c.email, c.website].filter(Boolean).join('   |   '), [t.gstin && 'GSTIN: ' + t.gstin, t.pan && 'PAN: ' + t.pan].filter(Boolean).join('   |   ')].filter(Boolean);
+      let iy = y + f(7); info.forEach((l) => doc.splitTextToSize(l, 120).forEach((x) => { txt(x, M, iy); iy += f(4); }));
+      doc.setFillColor(...ACC); doc.roundedRect(W - M - 54, y - f(3), 54, f(14), 1.2, 1.2, 'F');
+      doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(f(13)); txt(sale ? 'TAX INVOICE' : 'PURCHASE BILL', W - M - 27, y + f(3.6), { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(f(6.5)); txt(sale ? 'ORIGINAL FOR RECIPIENT' : 'SUPPLIER BILL RECORD', W - M - 27, y + f(8), { align: 'center' }); doc.setTextColor(0);
+      y = Math.max(iy, y + f(14)) + f(2);
+      // info strip
+      const cells = sale ? [['INVOICE NO', v.no], ['DATE', fdate(v.date)], ['DUE DATE', v.dueDate ? fdate(v.dueDate) : '-'], ['PLACE OF SUPPLY', posTxt]] : [['SUPPLIER INVOICE', v.refNo || '-'], ['DATE', fdate(v.date)], ['DUE DATE', v.dueDate ? fdate(v.dueDate) : '-'], ['OUR REF', v.no]];
+      const cw = (W - 2 * M) / 4, sh = f(11); doc.setFillColor(241, 246, 247); doc.setDrawColor(...LINE); doc.setLineWidth(0.2); doc.rect(M, y, W - 2 * M, sh, 'FD');
+      cells.forEach((q, i) => { const x = M + i * cw; if (i) doc.line(x, y, x, y + sh); doc.setFont('helvetica', 'normal'); doc.setFontSize(f(6.5)); doc.setTextColor(100); txt(q[0], x + 2.5, y + f(4)); doc.setFont('helvetica', 'bold'); doc.setFontSize(f(9)); doc.setTextColor(0); txt(doc.splitTextToSize(String(q[1]), cw - 5)[0], x + 2.5, y + f(8.6)); });
+      y += sh + f(4);
+      // parties
+      const bw = (W - 2 * M - 4) / 2, lh = f(4.2);
+      const supply = ['Supply type: ' + (inter ? 'Inter-state (IGST)' : 'Intra-state (CGST + SGST)')].concat(sale ? ['Reverse charge: No'] : ['Place of supply: ' + posTxt]).concat(sale && v.refNo ? ['Customer PO / ref: ' + v.refNo] : []).concat(v.narration ? [v.narration] : []).map((s) => ({ s }));
+      const mk = (x, head, lines) => { doc.setFontSize(f(9)); const w = []; lines.forEach((l) => doc.splitTextToSize(String(l.s), bw - 6).forEach((s) => w.push({ s, b: l.b }))); return { x, head, w, h: f(8) + w.length * lh + f(2) }; };
+      const L = mk(M, sale ? 'Bill to' : 'Supplier', who(false)), Rb = mk(M + bw + 4, sale ? 'Supply details' : 'Billed to (us)', sale ? supply : who(true).concat(supply.slice(0, 1)));
+      const bh = Math.max(L.h, Rb.h); need(bh);
+      [L, Rb].forEach((bx) => { doc.setDrawColor(...LINE); doc.rect(bx.x, y, bw, bh); doc.setFillColor(...SOFT); doc.rect(bx.x, y, bw, f(5.6), 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(f(7)); doc.setTextColor(...ACC); txt(bx.head.toUpperCase(), bx.x + 3, y + f(3.9)); doc.setTextColor(0); doc.setFontSize(f(9));
+        bx.w.forEach((l, i) => { doc.setFont('helvetica', l.b ? 'bold' : 'normal'); txt(l.s, bx.x + 3, y + f(10.4) + i * lh); }); });
+      y += bh + f(5);
+      // items (tax rate is shown under the amount only while there is room; the HSN summary always carries the rates)
+      const twoLine = k >= 0.85;
+      const colHead = ['#', 'Description', 'HSN/SAC', 'Qty', 'Rate' + (incl ? ' (incl.)' : '')].concat(hasDisc ? ['Disc'] : []).concat(['Taxable'], inter ? ['IGST'] : ['CGST', 'SGST'], ['Total']);
+      const tx = (amt, g) => (twoLine ? fmt(amt) + '\n' + g + '%' : fmt(amt));
+      const body = v.lines.map((l, i) => [i + 1, l.desc, l.hsn || '', num(l.qty) + ' ' + (l.unit || ''), fmt(l.rate)].concat(hasDisc ? [num(l.disc) ? num(l.disc) + '%' : ''] : []).concat([fmt(l.amount)], inter ? [tx(l.igst, num(l.gst))] : [tx(l.cgst, half(l.gst)), tx(l.sgst, half(l.gst))], [fmt(r2(l.amount + l.cgst + l.sgst + l.igst))]));
+      const cs = { 0: { cellWidth: 7 }, 2: { cellWidth: 17 } }; for (let i = 3; i < colHead.length; i++) { cs[i] = { halign: 'right', cellWidth: colHead[i] === 'Disc' ? 11 : colHead[i] === 'Total' ? 22 : colHead[i] === 'Qty' ? 17 : 20 }; }
+      doc.autoTable({ startY: y, margin: { left: M, right: M, top: 14 }, rowPageBreak: 'avoid', theme: 'grid', styles: { fontSize: f(8.3), cellPadding: f(1.5), lineColor: LINE, lineWidth: 0.2, textColor: 20 }, headStyles: { fillColor: ACC, textColor: 255, fontStyle: 'bold', lineColor: ACC }, alternateRowStyles: { fillColor: [248, 250, 251] },
+        head: [colHead], body, columnStyles: cs, didParseCell: (d) => { if (d.section === 'head' && d.column.index >= 3) d.cell.styles.halign = 'right'; if (d.section === 'body' && d.column.index === colHead.length - 1) d.cell.styles.fontStyle = 'bold'; } });
+      y = doc.lastAutoTable.finalY + f(5);
+      // words + HSN summary (left), totals (right)
+      const hs = new Map(); v.lines.forEach((l) => { const q = (l.hsn || '-') + '|' + num(l.gst), e = hs.get(q) || { h: l.hsn || '-', g: num(l.gst), t: 0, c: 0, s: 0, i: 0 }; e.t += l.amount; e.c += l.cgst; e.s += l.sgst; e.i += l.igst; hs.set(q, e); });
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(f(8.8)); const words = doc.splitTextToSize(E.numToWords(v.total).replace(/₹/g, 'Rs.'), 94); const wh = f(7) + words.length * lh;
+      need(wh + f(14) + hs.size * f(6) + f(12)); const y0 = y;
+      doc.setDrawColor(150, 170, 176); doc.setLineDashPattern([1, 1], 0); doc.setFillColor(251, 253, 253); doc.roundedRect(M, y0, 100, wh, 1, 1, 'FD'); doc.setLineDashPattern([], 0);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(f(6.5)); doc.setTextColor(100); txt('AMOUNT IN WORDS', M + 2.5, y0 + f(3.6)); doc.setFont('helvetica', 'bold'); doc.setFontSize(f(8.8)); doc.setTextColor(0); words.forEach((l, i) => txt(l, M + 2.5, y0 + f(8) + i * lh));
+      doc.autoTable({ startY: y0 + wh + f(3), margin: { left: M }, tableWidth: 100, theme: 'grid', styles: { fontSize: f(7.8), cellPadding: f(1.2), lineColor: LINE, lineWidth: 0.2, textColor: 20 }, headStyles: { fillColor: SOFT, textColor: ACC, fontStyle: 'bold' },
+        head: [['HSN/SAC', 'Taxable', 'Rate'].concat(inter ? ['IGST'] : ['CGST', 'SGST'], ['Total tax'])], body: [...hs.values()].map((e) => [e.h, fmt(e.t), e.g + '%'].concat(inter ? [fmt(e.i)] : [fmt(e.c), fmt(e.s)], [fmt(r2(e.c + e.s + e.i))])),
+        columnStyles: inter ? { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } } : { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
+        didParseCell: (d) => { if (d.section === 'head' && d.column.index >= 1) d.cell.styles.halign = 'right'; } });
+      const yl = doc.lastAutoTable.finalY;
+      const tot = [['Taxable value', fmt(v.taxable)]].concat(inter ? [['IGST', fmt(v.igst)]] : [['CGST', fmt(v.cgst)], ['SGST', fmt(v.sgst)]]).concat(v.roundOff ? [['Round off', fmt(v.roundOff)]] : []).concat([['Grand total', R(v.total)]]);
+      doc.autoTable({ startY: y0, margin: { left: 118, right: M }, theme: 'plain', styles: { fontSize: f(9), cellPadding: { top: f(1.6), bottom: f(1.6), left: 2, right: 2 }, textColor: 0, lineColor: [225, 232, 234], lineWidth: { bottom: 0.2 } }, body: tot, columnStyles: { 1: { halign: 'right' } },
+        didParseCell: (d) => { if (d.row.index === tot.length - 1) { d.cell.styles.fillColor = ACC; d.cell.styles.textColor = 255; d.cell.styles.fontStyle = 'bold'; d.cell.styles.fontSize = f(11); } } });
+      y = Math.max(yl, doc.lastAutoTable.finalY) + f(6);
+      if (sale) {
+        const bank = (c.bankName || c.bankAcc || c.upi) ? [{ h: 'BANK DETAILS' }].concat([c.bankName, c.branch, c.bankAcc && 'A/c no: ' + c.bankAcc, c.ifsc && 'IFSC: ' + c.ifsc, c.upi && 'UPI: ' + c.upi].filter(Boolean).map((s) => ({ s }))) : [];
+        doc.setFontSize(f(8.5)); const terms = c.terms ? [{ h: 'TERMS & CONDITIONS' }].concat(doc.splitTextToSize(String(c.terms), 108).map((s) => ({ s }))) : [];
+        const left = bank.concat(bank.length && terms.length ? [{ s: '' }] : [], terms), fh = Math.max(left.length * lh, f(32)); need(fh + f(10));
+        left.forEach((l, i) => { if (l.h) { doc.setFont('helvetica', 'bold'); doc.setFontSize(f(7)); doc.setTextColor(...ACC); txt(l.h, M, y + i * lh); doc.setTextColor(0); } else { doc.setFont('helvetica', 'normal'); doc.setFontSize(f(8.5)); txt(l.s, M, y + i * lh); } });
+        doc.setDrawColor(...LINE); doc.rect(W - M - 66, y - 3, 66, f(32)); doc.setFont('helvetica', 'normal'); doc.setFontSize(f(9)); doc.setTextColor(0);
+        txt('For ' + (c.legalName || c.name), W - M - 3, y + f(2), { align: 'right' }); doc.setDrawColor(90); doc.line(W - M - 60, y + f(22), W - M - 3, y + f(22)); doc.setFontSize(f(8.5)); txt(c.signatory || 'Authorised signatory', W - M - 3, y + f(26), { align: 'right' });
+        y += fh + 3; need(8); doc.setFontSize(f(7.5)); doc.setTextColor(90); doc.splitTextToSize('We declare that this invoice shows the actual price of the goods / services described and that all particulars are true and correct.', W - 2 * M).forEach((l) => { txt(l, M, y); y += f(3.6); }); doc.setTextColor(0);
+      }
+      const pages = doc.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(130); doc.setFont('helvetica', 'normal'); txt('This is a computer generated invoice' + (pages > 1 ? '  |  Page ' + i + ' of ' + pages : ''), W / 2, 291, { align: 'center' }); }
+      return doc;
+    };
+
+    // shrink step by step until everything sits on one page; a very long invoice falls back to normal multi-page
+    let doc = null;
+    for (const k of [1, 0.94, 0.88, 0.82, 0.76, 0.7, 0.65, 0.6, 0.56, 0.52]) { const d = build(k); if (d.getNumberOfPages() === 1) { doc = d; break; } }
+    if (!doc) doc = build(0.85);
     A.deliver((sale ? 'Invoice_' : 'Bill_') + v.no.replace(/[^A-Za-z0-9-]+/g, '-') + '.pdf', doc.output('blob'));
   };
 
