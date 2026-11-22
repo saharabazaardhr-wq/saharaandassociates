@@ -118,6 +118,7 @@
   const empty = (msg) => '<div class="empty">' + msg + '</div>';
   const pageHead = (title, sub, actions) => '<div class="phead"><div><h1>' + title + '</h1>' + (sub ? '<p class="sub">' + sub + '</p>' : '') + '</div><div class="pact">' + (actions || '') + '</div></div>';
   const chip = (txt, cls) => '<span class="chip ' + (cls || '') + '">' + txt + '</span>';
+  A.u.chip = chip; A.u.panel = panel; A.u.pageHead = pageHead;
   const typeChip = (t) => chip(E.TYPE_LABEL[t], 't-' + t);
   A.u.tile = tile; A.u.panel = panel; A.u.chip = chip;
   const fyTxt = () => 'FY ' + E.fyLabel(A.ui.fy);
@@ -563,7 +564,7 @@
     ['Parties', [['parties', 'Party Profiles'], ['ledger', 'Party Ledger'], ['debtors', 'Sundry Debtors'], ['creditors', 'Sundry Creditors']]],
     ['Statements', [['pnl', 'Profit & Loss'], ['balance-sheet', 'Balance Sheet'], ['trial-balance', 'Trial Balance']]],
     ['Compliance', [['taxation', 'Taxation (GST, TDS)']]],
-    ['Setup', [['company', 'Company Profile'], ['accounts', 'Ledgers'], ['tally', 'Import from Tally'], ['data', 'Backup & Data']]],
+    ['Setup', [['company', 'Company Profile'], ['accounts', 'Ledgers'], ['tally', 'Import from Tally'], ['data', 'Backup & Data'], ['security', 'Security']]],
   ];
   const routeName = () => (location.hash || '#dashboard').slice(1) || 'dashboard';
   A.buildNav = function () {

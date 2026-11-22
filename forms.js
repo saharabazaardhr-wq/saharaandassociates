@@ -436,8 +436,8 @@
   // ---------- voucher view / invoice ----------
   // ---------- invoice design (one source of CSS for the preview, print and saved HTML) ----------
   const INVC = [
-    '.inv{font:12.5px/1.45 Arial,Helvetica,sans-serif;color:#1a1a1a;background:#fff;border:1px solid #cfd6d9;border-radius:4px;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}',
-    '.inv *{box-sizing:border-box}.inv .bar{height:8px;background:#0f4c5c}',
+    '.inv{font:12.5px/1.45 Arial,Helvetica,sans-serif;color:#1a1a1a;background:#fff;border:1px solid #cfd6d9;border-radius:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box;aspect-ratio:210/297;display:flex;flex-direction:column;padding-bottom:6px}',
+    '.inv *{box-sizing:border-box}.inv .bar{height:8px;background:#0f4c5c;border-radius:3px 3px 0 0}',
     '.inv .ihead{display:flex;justify-content:space-between;gap:16px;padding:14px 18px 10px}',
     '.inv .co h2{margin:0 0 3px;font-size:21px;color:#0f4c5c;letter-spacing:.02em}.inv .co p{margin:0;color:#444;font-size:11.5px}.inv .co p b{color:#1a1a1a}',
     '.inv .ttl{background:#0f4c5c;color:#fff;padding:9px 16px;text-align:center;min-width:190px;border-radius:3px;align-self:flex-start}',
@@ -447,7 +447,7 @@
     '.inv .strip small{display:block;color:#5b6b71;font-size:9.5px;text-transform:uppercase;letter-spacing:.07em}.inv .strip b{font-size:13px}',
     '.inv .parties{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 18px 0}',
     '.inv .box{border:1px solid #c9d3d6;border-radius:3px;overflow:hidden}.inv .box h4{margin:0;padding:4px 10px;background:#e3edef;color:#0f4c5c;font-size:10px;text-transform:uppercase;letter-spacing:.08em}.inv .box>div{padding:7px 10px}',
-    '.inv .tw{margin:12px 18px 0;overflow-x:auto}.inv .items{width:100%;min-width:560px;border-collapse:collapse}',
+    '.inv .tw{margin:12px 18px 0;overflow-x:auto;flex:1 1 auto;display:flex;flex-direction:column}.inv .items{width:100%;min-width:560px;border-collapse:collapse;flex:1 1 auto}.inv .items tr.fill td{height:100%;padding:0;border-top:0;background:#fff!important}',
     '.inv .items th{background:#0f4c5c;color:#fff;font-size:10.5px;padding:6px;text-align:left;border:1px solid #0f4c5c}.inv .items td{padding:5px 6px;border:1px solid #c9d3d6;vertical-align:top}',
     '.inv .items tbody tr:nth-child(even) td{background:#f8fafb}.inv .items tr:hover td{background:inherit}',
     '.inv .n,.inv .items th.n{text-align:right;font-variant-numeric:tabular-nums}.inv td small{display:block;color:#6a797f;font-size:9.5px}',
@@ -457,7 +457,7 @@
     '.inv .tot{width:100%;border-collapse:collapse}.inv .tot td{padding:4px 8px;border-bottom:1px solid #e1e8ea}.inv .tot .g td{background:#0f4c5c;color:#fff;font-size:15px;font-weight:700;border:0}',
     '.inv .foot{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin:14px 18px 0}.inv .foot h4{margin:0 0 3px;font-size:10px;color:#0f4c5c;text-transform:uppercase;letter-spacing:.08em}.inv .foot p{margin:0 0 8px;font-size:11.5px}',
     '.inv .sign{text-align:right;border:1px solid #c9d3d6;border-radius:3px;padding:8px 10px;min-height:96px;display:flex;flex-direction:column;justify-content:space-between}.inv .sign .ln{border-top:1px solid #555;padding-top:3px;font-size:11.5px}',
-    '.inv .decl{margin:12px 18px 0;font-size:10.5px;color:#555}.inv .cg{margin:12px 0 0;padding:6px;text-align:center;font-size:10px;color:#6a797f;border-top:1px solid #e1e8ea}.inv small{color:#5b6b71}',
+    '.inv .decl{margin:12px 18px 8px;font-size:10.5px;color:#555}.inv .cg{margin:auto 0 0;padding:6px;text-align:center;font-size:10px;color:#6a797f;border-top:1px solid #e1e8ea}.inv small{color:#5b6b71}',
     '@media(max-width:560px){.inv .strip{grid-template-columns:1fr 1fr}.inv .parties,.inv .sum,.inv .foot{grid-template-columns:1fr}.inv .ihead{flex-direction:column}}',
   ].join('');
   const INV_CSS = 'body{font:13px/1.45 Arial,Helvetica,sans-serif;margin:0;padding:24px;background:#fff}.inv{max-width:820px;margin:0 auto}' + INVC;
@@ -478,7 +478,7 @@
     const rows = v.lines.map((l, i) => '<tr><td>' + (i + 1) + '</td><td>' + esc(l.desc) + '</td><td>' + esc(l.hsn) + '</td><td class="n">' + num(l.qty) + ' ' + esc(l.unit || '') + '</td><td class="n">' + fmt(l.rate) + '</td>'
       + (hasDisc ? '<td class="n">' + (num(l.disc) ? num(l.disc) + '%' : '') + '</td>' : '') + '<td class="n">' + fmt(l.amount) + '</td>'
       + (inter ? '<td class="n">' + fmt(l.igst) + '<small>' + num(l.gst) + '%</small></td>' : '<td class="n">' + fmt(l.cgst) + '<small>' + half(l.gst) + '%</small></td><td class="n">' + fmt(l.sgst) + '<small>' + half(l.gst) + '%</small></td>')
-      + '<td class="n"><b>' + fmt(r2(l.amount + l.cgst + l.sgst + l.igst)) + '</b></td></tr>').join('');
+      + '<td class="n"><b>' + fmt(r2(l.amount + l.cgst + l.sgst + l.igst)) + '</b></td></tr>').join('') + '<tr class="fill">' + '<td></td>'.repeat(5 + (hasDisc ? 1 : 0) + 1 + (inter ? 1 : 2) + 1) + '</tr>';
     const hs = new Map();
     v.lines.forEach((l) => { const k = (l.hsn || '—') + '|' + num(l.gst), e = hs.get(k) || { hsn: l.hsn || '—', g: num(l.gst), t: 0, c: 0, s: 0, i: 0 }; e.t += l.amount; e.c += l.cgst; e.s += l.sgst; e.i += l.igst; hs.set(k, e); });
     const hrows = [...hs.values()].map((e) => '<tr><td>' + esc(e.hsn) + '</td><td class="n">' + fmt(e.t) + '</td><td class="n">' + e.g + '%</td>' + (inter ? '<td class="n">' + fmt(e.i) + '</td>' : '<td class="n">' + fmt(e.c) + '</td><td class="n">' + fmt(e.s) + '</td>') + '<td class="n">' + fmt(r2(e.c + e.s + e.i)) + '</td></tr>').join('');
@@ -529,7 +529,7 @@
     setTimeout(() => {
       try {
         // shrink the invoice until it fits one A4 page (277 mm usable height)
-        const inv = d.querySelector('.inv'), avail = 1020; let z = 1; inv.style.zoom = 1;
+        const inv = d.querySelector('.inv'), avail = 1024; let z = 1; inv.style.zoom = 1;
         while (inv.getBoundingClientRect().height > avail && z > 0.45) { z = Math.round((z - 0.03) * 100) / 100; inv.style.zoom = z; }
         fr.contentWindow.focus(); fr.contentWindow.print();
       } catch (e) { A.toast('Printing is not available here. Use Download PDF.', 'bad'); }
@@ -548,8 +548,8 @@
       return [{ b: 1, s: isCo ? (c.legalName || c.name) : p.name }, a.address, [a.city, a.state, a.pin].filter(Boolean).join(', '), a.stateCode && 'State code: ' + a.stateCode, a.phone && 'Phone: ' + a.phone, isCo && c.email, gst ? 'GSTIN: ' + gst : 'GSTIN: Unregistered', pan && 'PAN: ' + pan].filter(Boolean).map((l) => (typeof l === 'string' ? { s: l } : l)); };
 
     /** Draw the whole invoice at scale k (1 = normal, smaller = tighter so more items fit on one page). */
-    const build = (k) => {
-      const f = (n) => n * k;
+    const build = (k, extra) => {
+      const f = (n) => n * k; extra = extra || 0;
       const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' }); let y = 0;
       const txt = (s, x, yy, o) => doc.text(String(s), x, yy, o);
       const need = (h) => { if (y + h > 282) { doc.addPage(); y = 14; } };
@@ -585,7 +585,14 @@
       const cs = { 0: { cellWidth: 7 }, 2: { cellWidth: 17 } }; for (let i = 3; i < colHead.length; i++) { cs[i] = { halign: 'right', cellWidth: colHead[i] === 'Disc' ? 11 : colHead[i] === 'Total' ? 22 : colHead[i] === 'Qty' ? 17 : 20 }; }
       doc.autoTable({ startY: y, margin: { left: M, right: M, top: 14 }, rowPageBreak: 'avoid', theme: 'grid', styles: { fontSize: f(8.3), cellPadding: f(1.5), lineColor: LINE, lineWidth: 0.2, textColor: 20 }, headStyles: { fillColor: ACC, textColor: 255, fontStyle: 'bold', lineColor: ACC }, alternateRowStyles: { fillColor: [248, 250, 251] },
         head: [colHead], body, columnStyles: cs, didParseCell: (d) => { if (d.section === 'head' && d.column.index >= 3) d.cell.styles.halign = 'right'; if (d.section === 'body' && d.column.index === colHead.length - 1) d.cell.styles.fontStyle = 'bold'; } });
-      y = doc.lastAutoTable.finalY + f(5);
+      y = doc.lastAutoTable.finalY;
+      if (extra > 1 && doc.getNumberOfPages() === 1) {
+        // empty part of the items box, so the totals and signature sit at the bottom of the A4 page
+        const cols = doc.lastAutoTable.columns; let x = M; doc.setDrawColor(...LINE); doc.setLineWidth(0.2); doc.rect(M, y, W - 2 * M, extra);
+        cols.forEach((q, i) => { x += q.width; if (i < cols.length - 1) doc.line(x, y, x, y + extra); });
+        y += extra;
+      }
+      y += f(5);
       // words + HSN summary (left), totals (right)
       const hs = new Map(); v.lines.forEach((l) => { const q = (l.hsn || '-') + '|' + num(l.gst), e = hs.get(q) || { h: l.hsn || '-', g: num(l.gst), t: 0, c: 0, s: 0, i: 0 }; e.t += l.amount; e.c += l.cgst; e.s += l.sgst; e.i += l.igst; hs.set(q, e); });
       doc.setFont('helvetica', 'bold'); doc.setFontSize(f(8.8)); const words = doc.splitTextToSize(E.numToWords(v.total).replace(/₹/g, 'Rs.'), 94); const wh = f(7) + words.length * lh;
@@ -612,13 +619,16 @@
       }
       const pages = doc.getNumberOfPages();
       for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(130); doc.setFont('helvetica', 'normal'); txt('This is a computer generated invoice' + (pages > 1 ? '  |  Page ' + i + ' of ' + pages : ''), W / 2, 291, { align: 'center' }); }
-      return doc;
+      return { doc, end: y };
     };
 
     // shrink step by step until everything sits on one page; a very long invoice falls back to normal multi-page
     let doc = null;
-    for (const k of [1, 0.94, 0.88, 0.82, 0.76, 0.7, 0.65, 0.6, 0.56, 0.52]) { const d = build(k); if (d.getNumberOfPages() === 1) { doc = d; break; } }
-    if (!doc) doc = build(0.85);
+    for (const k of [1, 0.94, 0.88, 0.82, 0.76, 0.7, 0.65, 0.6, 0.56, 0.52]) {
+      const r = build(k);
+      if (r.doc.getNumberOfPages() === 1) { doc = r.doc; for (let g = 283 - r.end; g > 2; g -= 4) { const q = build(k, g).doc; if (q.getNumberOfPages() === 1) { doc = q; break; } } break; }
+    }
+    if (!doc) doc = build(0.85).doc;
     A.deliver((sale ? 'Invoice_' : 'Bill_') + v.no.replace(/[^A-Za-z0-9-]+/g, '-') + '.pdf', doc.output('blob'));
   };
 

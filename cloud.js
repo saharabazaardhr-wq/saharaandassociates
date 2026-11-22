@@ -130,6 +130,28 @@
 
   function signOut() { sess = null; lsDel(SKEY); }
 
+  /** Change the password of the person who is logged in (the current password is checked first). */
+  async function changePassword(current, next) {
+    if (!sess) throw fail('Login nahi hai', 'auth');
+    const email = sess.email;
+    const chk = await raw(CFG.url + '/auth/v1/token?grant_type=password', { method: 'POST', headers: { apikey: CFG.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: current }) });
+    const cb = await bodyOf(chk);
+    if (!chk.ok) throw fail(chk.status === 400 ? 'Abhi ka password galat hai' : msgOf(cb, chk), chk.status >= 500 ? 'unavailable' : 'auth');
+    keep(cb, email);
+    const res = await raw(CFG.url + '/auth/v1/user', { method: 'PUT', headers: { apikey: CFG.key, Authorization: 'Bearer ' + sess.access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: next }) });
+    const b = await bodyOf(res);
+    if (!res.ok) throw fail(msgOf(b, res), res.status >= 500 ? 'unavailable' : 'rest');
+    return true;
+  }
+
+  /** Call the sa-admin function (list / create / password / role / remove users). */
+  async function admin(action, payload) {
+    const res = await raw(CFG.url + '/functions/v1/sa-admin', { method: 'POST', headers: { apikey: CFG.key, Authorization: 'Bearer ' + (await token()), 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ action }, payload || {})) });
+    const b = await bodyOf(res);
+    if (!res.ok) throw fail((b && b.error) || msgOf(b, res), res.status >= 500 ? 'unavailable' : 'rest');
+    return b;
+  }
+
   // ---------- login screen ----------
   function loginScreen() {
     return new Promise((resolve) => {
@@ -160,7 +182,7 @@
     enabled,
     email: () => (sess && sess.email) || '',
     hasSession: () => !!sess,
-    signOut,
+    signOut, changePassword, admin,
     base: makeBase,
     /** Resolves to a document base when signed in, or null when the person continues without login. */
     async connect() {
